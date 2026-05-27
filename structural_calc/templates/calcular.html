@@ -1,0 +1,1401 @@
+{% extends "base.html" %}
+{% block title %}Calcular – {{ projeto.nome }} – StructCalc{% endblock %}
+
+{% block content %}
+<div class="max-w-screen-xl mx-auto" x-data="calcularPage({{ projeto.id }})">
+
+  <!-- ── Cabeçalho ─────────────────────────────────────────────────────── -->
+  <div class="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+    <a href="{{ url_for('projeto', pid=projeto.id) }}"
+       class="text-slate-400 hover:text-blue-400 transition-colors p-1 -ml-1"
+       style="touch-action:manipulation;">
+      <i class="fa-solid fa-arrow-left text-lg"></i>
+    </a>
+    <div class="min-w-0 flex-1">
+      <h1 class="text-base sm:text-2xl font-bold text-slate-100 truncate">
+        <i class="fa-solid fa-calculator text-blue-400 mr-1.5"></i>Cálculo Estrutural
+      </h1>
+      <p class="text-xs text-slate-400 truncate">
+        <span class="text-blue-300 font-medium">{{ projeto.nome }}</span>
+      </p>
+    </div>
+    <a href="{{ url_for('projeto', pid=projeto.id) }}" class="btn-sm shrink-0">
+      <i class="fa-solid fa-folder-open"></i>
+      <span class="hidden sm:inline ml-1">Ver Projeto</span>
+    </a>
+  </div>
+
+  <!-- ── Barra de abas ─────────────────────────────────────────────────── -->
+  <div class="tab-pills mb-4 sm:mb-6">
+    <template x-for="tab in tabs" :key="tab.id">
+      <button
+        @click="activeTab = tab.id; resetResults()"
+        :class="activeTab === tab.id ? 'tab-pill-active' : 'tab-pill-inactive'"
+        class="tab-pill">
+        <i :class="tab.icon"></i>
+        <span class="hidden sm:inline" x-text="tab.label"></span>
+        <span class="sm:hidden" x-text="tab.shortLabel"></span>
+      </button>
+    </template>
+  </div>
+
+  <!-- ── Layout principal: formulário + resultados ─────────────────────── -->
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         COLUNA DO FORMULÁRIO (2/5)
+    ════════════════════════════════════════════════════════════════════ -->
+    <div class="lg:col-span-2 space-y-4">
+
+      <!-- ── LAJE ────────────────────────────────────────────────────── -->
+      <div x-show="activeTab === 'laje'" x-cloak>
+        <div class="card">
+          <h2 class="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-blue-400"></i> Laje
+          </h2>
+
+          <!-- Sub-abas laje -->
+          <div class="subtab-bar mb-4">
+            <button @click="laje.subtipo='macica'"
+              :class="laje.subtipo==='macica' ? 'subtab-active' : 'subtab-inactive'"
+              class="subtab-btn">Maciça</button>
+            <button @click="laje.subtipo='trelicada'"
+              :class="laje.subtipo==='trelicada' ? 'subtab-active' : 'subtab-inactive'"
+              class="subtab-btn">Treliçada</button>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Campos comuns -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Vão principal lx (m)</label>
+                <input type="number" inputmode="decimal" step="0.01" min="0.5" x-model="laje.lx"
+                       class="input-field" placeholder="4.00"/>
+              </div>
+              <div x-show="laje.subtipo==='macica'">
+                <label class="label">Vão secundário ly (m)</label>
+                <input type="number" inputmode="decimal" step="0.01" min="0.5" x-model="laje.ly"
+                       class="input-field" placeholder="5.00"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Carga perm. g (kN/m²)</label>
+                <input type="number" inputmode="decimal" step="0.1" min="0" x-model="laje.g"
+                       class="input-field" placeholder="1.5"/>
+              </div>
+              <div>
+                <label class="label">Carga var. q (kN/m²)</label>
+                <input type="number" inputmode="decimal" step="0.1" min="0" x-model="laje.q"
+                       class="input-field" placeholder="1.5"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Concreto (fck)</label>
+                <select x-model="laje.fck" class="select-field">
+                  {% for k in concretos %}
+                    <option value="{{ k | replace('C','') }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Aço</label>
+                <select x-model="laje.aco" class="select-field">
+                  {% for k in acos %}
+                    <option value="{{ k }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Cobrimento</label>
+                <select x-model="laje.cobrimento" class="select-field">
+                  {% for k, v in cobrimentos.items() %}
+                    <option value="{{ k }}" title="{{ v.descricao }}">{{ k }} ({{ v.c_nom }}mm)</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Tipo de apoio</label>
+                <select x-model="laje.apoio" class="select-field">
+                  <option value="simples">Simples</option>
+                  <option value="continua">Contínua</option>
+                  <option value="balanco">Balanço</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Uso / Ocupação</label>
+              <select x-model="laje.uso" class="select-field">
+                {% for k, v in usos.items() %}
+                  <option value="{{ k }}">{{ v.descricao }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Tipo de treliça (só para treliçada) -->
+            <div x-show="laje.subtipo==='trelicada'">
+              <label class="label">Tipo de Treliça</label>
+              <select x-model="laje.tipo_trelica" class="select-field">
+                {% for t in tipos_trelica %}
+                  <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Descrição (opcional)</label>
+              <input type="text" x-model="laje.descricao" class="input-field"
+                     placeholder="Ex: Laje da sala"/>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-surface-border space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
+              <input type="checkbox" x-model="salvar" class="w-4 h-4 rounded accent-blue-500"/>
+              <span>Salvar neste projeto após calcular</span>
+            </label>
+            <button @click="calcular('laje')"
+                    :disabled="loading"
+                    class="btn-primary w-full">
+              <template x-if="!loading">
+                <span><i class="fa-solid fa-calculator mr-2"></i>Calcular Laje</span>
+              </template>
+              <template x-if="loading">
+                <span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Calculando…</span>
+              </template>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VIGA ────────────────────────────────────────────────────── -->
+      <div x-show="activeTab === 'viga'" x-cloak>
+        <div class="card">
+          <h2 class="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-minus text-orange-400"></i> Viga
+          </h2>
+          <div class="space-y-3">
+            <div>
+              <label class="label">Vão l (m)</label>
+              <input type="number" inputmode="decimal" step="0.01" min="0.5" x-model="viga.l"
+                     class="input-field" placeholder="5.00"/>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Largura bw (cm)</label>
+                <input type="number" inputmode="decimal" step="1" min="10" x-model="viga.bw_cm"
+                       class="input-field" placeholder="20"/>
+              </div>
+              <div>
+                <label class="label">Altura h (cm)</label>
+                <input type="number" inputmode="decimal" step="1" min="10" x-model="viga.h_cm"
+                       class="input-field" placeholder="50"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Carga perm. g (kN/m)</label>
+                <input type="number" inputmode="decimal" step="0.1" min="0" x-model="viga.g"
+                       class="input-field" placeholder="5.0"/>
+              </div>
+              <div>
+                <label class="label">Carga var. q (kN/m)</label>
+                <input type="number" inputmode="decimal" step="0.1" min="0" x-model="viga.q"
+                       class="input-field" placeholder="3.0"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Concreto (fck)</label>
+                <select x-model="viga.fck" class="select-field">
+                  {% for k in concretos %}
+                    <option value="{{ k | replace('C','') }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Aço</label>
+                <select x-model="viga.aco" class="select-field">
+                  {% for k in acos %}
+                    <option value="{{ k }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Cobrimento</label>
+                <select x-model="viga.cobrimento" class="select-field">
+                  {% for k, v in cobrimentos.items() %}
+                    <option value="{{ k }}">{{ k }} ({{ v.c_nom }}mm)</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Tipo de apoio</label>
+                <select x-model="viga.apoio" class="select-field">
+                  <option value="simples">Simples</option>
+                  <option value="continua">Contínua</option>
+                  <option value="balanco">Balanço</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Seção transversal</label>
+              <select x-model="viga.secao" class="select-field">
+                <option value="retangular">Retangular</option>
+                <option value="T">Seção T</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Descrição (opcional)</label>
+              <input type="text" x-model="viga.descricao" class="input-field"
+                     placeholder="Ex: Viga V1 - bloco 01"/>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-surface-border space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
+              <input type="checkbox" x-model="salvar" class="w-4 h-4 rounded accent-blue-500"/>
+              <span>Salvar neste projeto após calcular</span>
+            </label>
+            <button @click="calcular('viga')" :disabled="loading" class="btn-primary w-full">
+              <template x-if="!loading">
+                <span><i class="fa-solid fa-calculator mr-2"></i>Calcular Viga</span>
+              </template>
+              <template x-if="loading">
+                <span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Calculando…</span>
+              </template>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PILAR ───────────────────────────────────────────────────── -->
+      <div x-show="activeTab === 'pilar'" x-cloak>
+        <div class="card">
+          <h2 class="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-up-long text-purple-400"></i> Pilar
+          </h2>
+          <div class="space-y-3">
+            <div>
+              <label class="label">Força normal de cálculo Nd (kN)</label>
+              <input type="number" inputmode="decimal" step="1" min="0" x-model="pilar.Nd"
+                     class="input-field" placeholder="500"/>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Momento Mx (kN.m)</label>
+                <input type="number" inputmode="decimal" step="0.1" x-model="pilar.Mx"
+                       class="input-field" placeholder="0"/>
+              </div>
+              <div>
+                <label class="label">Momento My (kN.m)</label>
+                <input type="number" inputmode="decimal" step="0.1" x-model="pilar.My"
+                       class="input-field" placeholder="0"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Largura b (cm)</label>
+                <input type="number" inputmode="decimal" step="1" min="14" x-model="pilar.b_cm"
+                       class="input-field" placeholder="20"/>
+              </div>
+              <div>
+                <label class="label">Altura h (cm)</label>
+                <input type="number" inputmode="decimal" step="1" min="14" x-model="pilar.h_cm"
+                       class="input-field" placeholder="30"/>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Pé-direito / Comprimento l (m)</label>
+              <input type="number" inputmode="decimal" step="0.01" min="1" x-model="pilar.l"
+                     class="input-field" placeholder="3.00"/>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Concreto (fck)</label>
+                <select x-model="pilar.fck" class="select-field">
+                  {% for k in concretos %}
+                    <option value="{{ k | replace('C','') }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Aço</label>
+                <select x-model="pilar.aco" class="select-field">
+                  {% for k in acos %}
+                    <option value="{{ k }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Cobrimento</label>
+                <select x-model="pilar.cobrimento" class="select-field">
+                  {% for k, v in cobrimentos.items() %}
+                    <option value="{{ k }}">{{ k }} ({{ v.c_nom }}mm)</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Vínculo</label>
+                <select x-model="pilar.vinculo" class="select-field">
+                  <option value="biarticulado">Biarticulado</option>
+                  <option value="um_engaste">Um engaste</option>
+                  <option value="dois_engastes">Dois engastes</option>
+                  <option value="livre">Livre (console)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Forma da seção</label>
+              <select x-model="pilar.forma" class="select-field">
+                <option value="retangular">Retangular</option>
+                <option value="circular">Circular</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Descrição (opcional)</label>
+              <input type="text" x-model="pilar.descricao" class="input-field"
+                     placeholder="Ex: Pilar P7 - pavto tipo"/>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-surface-border space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
+              <input type="checkbox" x-model="salvar" class="w-4 h-4 rounded accent-blue-500"/>
+              <span>Salvar neste projeto após calcular</span>
+            </label>
+            <button @click="calcular('pilar')" :disabled="loading" class="btn-primary w-full">
+              <template x-if="!loading">
+                <span><i class="fa-solid fa-calculator mr-2"></i>Calcular Pilar</span>
+              </template>
+              <template x-if="loading">
+                <span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Calculando…</span>
+              </template>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FUNDAÇÃO ────────────────────────────────────────────────── -->
+      <div x-show="activeTab === 'fundacao'" x-cloak>
+        <div class="card">
+          <h2 class="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-mountain-sun text-yellow-400"></i> Fundação
+          </h2>
+
+          <!-- Sub-abas fundação -->
+          <div class="subtab-bar mb-4">
+            <button @click="fund.subtipo='sapata_isolada'"
+              :class="fund.subtipo==='sapata_isolada' ? 'subtab-active' : 'subtab-inactive'"
+              class="subtab-btn">Sapata</button>
+            <button @click="fund.subtipo='viga_baldrame'"
+              :class="fund.subtipo==='viga_baldrame' ? 'subtab-active' : 'subtab-inactive'"
+              class="subtab-btn">Baldrame</button>
+            <button @click="fund.subtipo='estaca'"
+              :class="fund.subtipo==='estaca' ? 'subtab-active' : 'subtab-inactive'"
+              class="subtab-btn">Estaca</button>
+          </div>
+
+          <div class="space-y-3">
+
+            <!-- SAPATA ISOLADA -->
+            <template x-if="fund.subtipo==='sapata_isolada'">
+              <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">Nd – força cálculo (kN)</label>
+                    <input type="number" inputmode="decimal" step="1" min="1" x-model="fund.Nd"
+                           class="input-field" placeholder="500"/>
+                  </div>
+                  <div>
+                    <label class="label">Nk – força caract. (kN)</label>
+                    <input type="number" inputmode="decimal" step="1" min="1" x-model="fund.Nk"
+                           class="input-field" placeholder="360"/>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">Pilar b (cm)</label>
+                    <input type="number" inputmode="decimal" step="1" min="10" x-model="fund.b_pilar_cm"
+                           class="input-field" placeholder="20"/>
+                  </div>
+                  <div>
+                    <label class="label">Pilar h (cm)</label>
+                    <input type="number" inputmode="decimal" step="1" min="10" x-model="fund.h_pilar_cm"
+                           class="input-field" placeholder="30"/>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">N_SPT médio</label>
+                    <input type="number" inputmode="numeric" step="1" min="1" x-model="fund.nspt"
+                           class="input-field" placeholder="10"/>
+                  </div>
+                  <div>
+                    <label class="label">Tipo de solo</label>
+                    <select x-model="fund.solo" class="select-field">
+                      <option value="areia">Areia</option>
+                      <option value="argila">Argila</option>
+                      <option value="pedregulho">Pedregulho</option>
+                      <option value="siltosa">Siltosa</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- VIGA BALDRAME -->
+            <template x-if="fund.subtipo==='viga_baldrame'">
+              <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">Carga q (kN/m)</label>
+                    <input type="number" inputmode="decimal" step="0.1" min="0" x-model="fund.q"
+                           class="input-field" placeholder="20.0"/>
+                  </div>
+                  <div>
+                    <label class="label">Vão l (m)</label>
+                    <input type="number" inputmode="decimal" step="0.01" min="0.5" x-model="fund.l"
+                           class="input-field" placeholder="4.0"/>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">N_SPT médio</label>
+                    <input type="number" inputmode="numeric" step="1" min="1" x-model="fund.nspt"
+                           class="input-field" placeholder="10"/>
+                  </div>
+                  <div>
+                    <label class="label">Tipo de solo</label>
+                    <select x-model="fund.solo" class="select-field">
+                      <option value="areia">Areia</option>
+                      <option value="argila">Argila</option>
+                      <option value="pedregulho">Pedregulho</option>
+                      <option value="siltosa">Siltosa</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- ESTACA -->
+            <template x-if="fund.subtipo==='estaca'">
+              <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">Nk – carga caract. (kN)</label>
+                    <input type="number" inputmode="decimal" step="1" min="1" x-model="fund.Nk"
+                           class="input-field" placeholder="100"/>
+                  </div>
+                  <div>
+                    <label class="label">Nd – carga cálculo (kN)</label>
+                    <input type="number" inputmode="decimal" step="1" min="1" x-model="fund.Nd"
+                           class="input-field" placeholder="140"/>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">N_SPT ponta</label>
+                    <input type="number" inputmode="numeric" step="1" min="1" x-model="fund.nspt_ponta"
+                           class="input-field" placeholder="15"/>
+                  </div>
+                  <div>
+                    <label class="label">N_SPT fuste (médio)</label>
+                    <input type="number" inputmode="decimal" step="0.5" min="1" x-model="fund.nspt_fuste"
+                           class="input-field" placeholder="8"/>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">Comprimento estaca (m)</label>
+                    <input type="number" inputmode="decimal" step="0.5" min="1" x-model="fund.h_estaca"
+                           class="input-field" placeholder="10"/>
+                  </div>
+                  <div>
+                    <label class="label">Diâmetro estaca (cm)</label>
+                    <input type="number" inputmode="numeric" step="5" min="15" x-model="fund.d_estaca_cm"
+                           class="input-field" placeholder="35"/>
+                  </div>
+                </div>
+                <div>
+                  <label class="label">Tipo de estaca</label>
+                  <select x-model="fund.tipo_estaca" class="select-field">
+                    {% for k in tipos_estaca %}
+                      <option value="{{ k }}">{{ k | replace('_',' ') | title }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            </template>
+
+            <!-- Campos comuns a sapata e baldrame -->
+            <div x-show="fund.subtipo !== 'estaca'" class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Concreto (fck)</label>
+                <select x-model="fund.fck" class="select-field">
+                  {% for k in concretos %}
+                    <option value="{{ k | replace('C','') }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Aço</label>
+                <select x-model="fund.aco" class="select-field">
+                  {% for k in acos %}
+                    <option value="{{ k }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Descrição (opcional)</label>
+              <input type="text" x-model="fund.descricao" class="input-field"
+                     placeholder="Ex: Sapata SP1 – bloco A"/>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-surface-border space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
+              <input type="checkbox" x-model="salvar" class="w-4 h-4 rounded accent-blue-500"/>
+              <span>Salvar neste projeto após calcular</span>
+            </label>
+            <button @click="calcular('fundacao')" :disabled="loading" class="btn-primary w-full">
+              <template x-if="!loading">
+                <span><i class="fa-solid fa-calculator mr-2"></i>Calcular Fundação</span>
+              </template>
+              <template x-if="loading">
+                <span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Calculando…</span>
+              </template>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MURO DE ARRIMO ──────────────────────────────────────────── -->
+      <div x-show="activeTab === 'muro'" x-cloak>
+        <div class="card">
+          <h2 class="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-wall text-green-400"></i> Muro de Arrimo
+          </h2>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Altura H (m)</label>
+                <input type="number" inputmode="decimal" step="0.1" min="0.5" x-model="muro.H"
+                       class="input-field" placeholder="3.0"/>
+              </div>
+              <div>
+                <label class="label">Tipo</label>
+                <select x-model="muro.tipo" class="select-field">
+                  <option value="balanco">Balanço</option>
+                  <option value="gravidade">Gravidade</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Ângulo de atrito φ (°)</label>
+                <input type="number" inputmode="numeric" step="1" min="15" max="45" x-model="muro.phi"
+                       class="input-field" placeholder="30"/>
+              </div>
+              <div>
+                <label class="label">Peso esp. solo γ (kN/m³)</label>
+                <input type="number" inputmode="decimal" step="0.5" min="10" x-model="muro.gamma_solo"
+                       class="input-field" placeholder="18"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Sobrecarga q (kN/m²)</label>
+                <input type="number" inputmode="decimal" step="0.5" min="0" x-model="muro.q_sob"
+                       class="input-field" placeholder="0"/>
+              </div>
+              <div>
+                <label class="label">σ_adm solo (kN/m²)</label>
+                <input type="number" inputmode="numeric" step="10" min="50" x-model="muro.sigma_adm"
+                       class="input-field" placeholder="150"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Concreto (fck)</label>
+                <select x-model="muro.fck" class="select-field">
+                  {% for k in concretos %}
+                    <option value="{{ k | replace('C','') }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Aço</label>
+                <select x-model="muro.aco" class="select-field">
+                  {% for k in acos %}
+                    <option value="{{ k }}">{{ k }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Cobrimento</label>
+              <select x-model="muro.cobrimento" class="select-field">
+                {% for k, v in cobrimentos.items() %}
+                  <option value="{{ k }}">{{ k }} ({{ v.c_nom }}mm)</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Descrição (opcional)</label>
+              <input type="text" x-model="muro.descricao" class="input-field"
+                     placeholder="Ex: Muro de contenção – divisa norte"/>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-surface-border space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
+              <input type="checkbox" x-model="salvar" class="w-4 h-4 rounded accent-blue-500"/>
+              <span>Salvar neste projeto após calcular</span>
+            </label>
+            <button @click="calcular('muro')" :disabled="loading" class="btn-primary w-full">
+              <template x-if="!loading">
+                <span><i class="fa-solid fa-calculator mr-2"></i>Calcular Muro</span>
+              </template>
+              <template x-if="loading">
+                <span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Calculando…</span>
+              </template>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ALVENARIA ESTRUTURAL ────────────────────────────────────── -->
+      <div x-show="activeTab === 'alvenaria'" x-cloak>
+        <div class="card">
+          <h2 class="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-bricks text-red-400"></i> Alvenaria Estrutural
+          </h2>
+          <div class="space-y-3">
+            <div>
+              <label class="label">Carga de cálculo Nd (kN/m)</label>
+              <input type="number" inputmode="decimal" step="0.5" min="0" x-model="alv.Nd"
+                     class="input-field" placeholder="50.0"/>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Altura da parede h (m)</label>
+                <input type="number" inputmode="decimal" step="0.05" min="1" x-model="alv.h"
+                       class="input-field" placeholder="3.0"/>
+              </div>
+              <div>
+                <label class="label">Espessura e (cm)</label>
+                <input type="number" inputmode="numeric" step="1" min="9" x-model="alv.e_cm"
+                       class="input-field" placeholder="14"/>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Tipo de bloco</label>
+              <select x-model="alv.bloco" class="select-field">
+                {% for k, v in blocos_alv.items() %}
+                  <option value="{{ k }}">{{ v.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Vínculo</label>
+                <select x-model="alv.vinculo" class="select-field">
+                  <option value="engastado_topo">Engastado no topo</option>
+                  <option value="biarticulado">Biarticulado</option>
+                  <option value="livre">Livre (console)</option>
+                </select>
+              </div>
+              <div>
+                <label class="label">Controle de execução</label>
+                <select x-model="alv.controle" class="select-field">
+                  <option value="normal">Normal</option>
+                  <option value="rigoroso">Rigoroso</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Descrição (opcional)</label>
+              <input type="text" x-model="alv.descricao" class="input-field"
+                     placeholder="Ex: Parede P01 – pavto térreo"/>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-surface-border space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
+              <input type="checkbox" x-model="salvar" class="w-4 h-4 rounded accent-blue-500"/>
+              <span>Salvar neste projeto após calcular</span>
+            </label>
+            <button @click="calcular('alvenaria')" :disabled="loading" class="btn-primary w-full">
+              <template x-if="!loading">
+                <span><i class="fa-solid fa-calculator mr-2"></i>Calcular Alvenaria</span>
+              </template>
+              <template x-if="loading">
+                <span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Calculando…</span>
+              </template>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /coluna formulário -->
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         COLUNA DE RESULTADOS (3/5)
+    ════════════════════════════════════════════════════════════════════ -->
+    <div class="lg:col-span-3" id="resultados-panel">
+
+      <!-- Estado inicial (sem resultados) -->
+      <div x-show="!results && !loading && !erro" class="card flex flex-col items-center justify-center py-12 sm:py-20">
+        <div class="text-center">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5">
+            <i class="fa-solid fa-calculator text-3xl sm:text-4xl text-slate-600"></i>
+          </div>
+          <h3 class="text-base sm:text-lg font-semibold text-slate-300 mb-2">Aguardando cálculo</h3>
+          <p class="text-xs sm:text-sm text-slate-500 max-w-xs">
+            Preencha o formulário e toque em "Calcular" para ver os resultados e o memorial.
+          </p>
+        </div>
+      </div>
+
+      <!-- Loading spinner -->
+      <div x-show="loading" class="card flex flex-col items-center justify-center py-12 sm:py-20">
+        <div class="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+        <p class="text-slate-400 text-sm">Processando cálculo…</p>
+        <p class="text-slate-600 text-xs mt-1">Verificando conforme NBR 6118:2023</p>
+      </div>
+
+      <!-- Mensagem de erro -->
+      <div x-show="erro && !loading" class="card border border-red-500/40 bg-red-900/10">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-triangle-exclamation text-red-400"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="font-semibold text-red-400 mb-1">Erro no cálculo</h3>
+            <p class="text-sm text-red-300 break-words" x-text="erro"></p>
+            <button @click="erro = null" class="text-xs text-slate-400 mt-2 hover:text-white underline">
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel de resultados -->
+      <div x-show="results && !loading" x-cloak class="space-y-4">
+
+        <!-- Cabeçalho do resultado -->
+        <div class="card border border-surface-border">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0"
+                   :class="statusOk ? 'bg-emerald-500/20' : 'bg-red-500/20'">
+                <i class="fa-solid text-base sm:text-lg"
+                   :class="statusOk ? 'fa-circle-check text-emerald-400' : 'fa-triangle-exclamation text-red-400'"></i>
+              </div>
+              <div class="min-w-0">
+                <h2 class="font-bold text-slate-100 text-base sm:text-lg truncate" x-text="resultTitle"></h2>
+                <p class="text-xs text-slate-500 mt-0.5 hidden sm:block">NBR 6118:2023 · NBR 6122:2019 · NBR 15961-1:2011</p>
+              </div>
+            </div>
+            <span class="badge-success shrink-0" x-show="statusOk">Aprovado</span>
+            <span class="badge-danger shrink-0" x-show="!statusOk">Verificar</span>
+          </div>
+
+          <!-- Link pós-salvamento -->
+          <div x-show="savedCalcId" class="mt-3 pt-3 border-t border-surface-border flex items-center gap-3 flex-wrap">
+            <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+            <span class="text-sm text-slate-300">Cálculo salvo!</span>
+            <a :href="`/projeto/{{ projeto.id }}`" class="btn-sm ml-auto">
+              <i class="fa-solid fa-folder-open mr-1"></i> Ver no Projeto
+            </a>
+          </div>
+        </div>
+
+        <!-- Grid de campos do resultado -->
+        <div class="card">
+          <h3 class="font-semibold text-slate-200 mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+            <i class="fa-solid fa-table-cells text-blue-400"></i> Resultados Principais
+          </h3>
+          <div class="result-grid">
+            <template x-for="[k, v] in flatResults" :key="k">
+              <div class="bg-surface rounded-lg p-2.5 sm:p-3 border border-surface-border">
+                <div class="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide leading-tight"
+                     x-text="formatKey(k)"></div>
+                <div class="text-sm font-bold leading-tight"
+                     :class="resultCardClass(k, v)"
+                     x-text="formatVal(k, v)"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Resumo de armadura -->
+        <div x-show="hasReinforcement" class="card border border-blue-500/30 bg-blue-900/10">
+          <h3 class="font-semibold text-blue-300 mb-3 flex items-center gap-2 text-sm sm:text-base">
+            <i class="fa-solid fa-grip-lines text-blue-400"></i> Resumo de Armadura
+          </h3>
+          <div class="space-y-2">
+            <template x-if="results?.bitola_principal">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-blue text-xs shrink-0">Principal</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.bitola_principal.diam"></span>mm
+                  c/<span x-text="results.bitola_principal.espacamento_cm"></span>cm
+                  → <strong x-text="results.bitola_principal.As_efetivo_cm2m"></strong> cm²/m
+                </span>
+              </div>
+            </template>
+            <template x-if="results?.bitola_secundaria">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-yellow text-xs shrink-0">Secundária</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.bitola_secundaria.diam"></span>mm
+                  c/<span x-text="results.bitola_secundaria.espacamento_cm"></span>cm
+                  → <strong x-text="results.bitola_secundaria.As_efetivo_cm2m"></strong> cm²/m
+                </span>
+              </div>
+            </template>
+            <template x-if="results?.bitola_longitudinal">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-blue text-xs shrink-0">Long.</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.bitola_longitudinal.diam"></span>mm
+                  → n = <span x-text="results.n_barras_lon"></span> barras
+                  (<strong x-text="results.As_lon_cm2"></strong> cm²)
+                </span>
+              </div>
+            </template>
+            <template x-if="results?.estribos">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-green text-xs shrink-0">Estribos</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.estribos.phi_estribo_mm"></span>mm
+                  <span x-text="results.estribos.n_ramos"></span>R
+                  c/<span x-text="results.estribos.s_adot_cm"></span>cm
+                </span>
+              </div>
+            </template>
+            <template x-if="results?.bitola_nervura">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-yellow text-xs shrink-0">Nervura</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.bitola_nervura.diam"></span>mm
+                  c/<span x-text="results.bitola_nervura.espacamento_cm"></span>cm
+                </span>
+              </div>
+            </template>
+            <template x-if="results?.bitola_capa">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-green text-xs shrink-0">Capa</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.bitola_capa.diam"></span>mm
+                  c/<span x-text="results.bitola_capa.espacamento_cm"></span>cm
+                </span>
+              </div>
+            </template>
+            <template x-if="results?.bitola_tela">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-green text-xs shrink-0">Tela</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.bitola_tela.diam"></span>mm
+                  c/<span x-text="results.bitola_tela.espacamento_cm"></span>cm
+                </span>
+              </div>
+            </template>
+            <template x-if="results?.bitola">
+              <div class="flex items-center gap-2 sm:gap-3 p-2 bg-surface rounded-lg">
+                <span class="badge-blue text-xs shrink-0">Armadura</span>
+                <span class="text-xs sm:text-sm text-slate-200 min-w-0">
+                  Ø<span x-text="results.bitola.diam"></span>mm
+                  c/<span x-text="results.bitola.espacamento_cm"></span>cm
+                  → <strong x-text="results.bitola.As_efetivo_cm2m"></strong> cm²/m
+                </span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Passos do memorial de cálculo -->
+        <div class="card" x-show="results?.passos?.length">
+          <button
+            @click="showPassos = !showPassos"
+            class="w-full flex items-center justify-between text-left min-h-[44px]">
+            <h3 class="font-semibold text-slate-200 flex items-center gap-2 text-sm sm:text-base">
+              <i class="fa-solid fa-list-check text-green-400"></i>
+              Memorial de Cálculo
+              <span class="text-xs text-slate-500 font-normal"
+                    x-text="`(${results?.passos?.length ?? 0} etapas)`"></span>
+            </h3>
+            <i class="fa-solid fa-chevron-down text-slate-500 transition-transform duration-200"
+               :class="showPassos ? 'rotate-180' : ''"></i>
+          </button>
+
+          <div x-show="showPassos" x-collapse class="mt-4 space-y-3">
+            <template x-for="(passo, idx) in (results?.passos ?? [])" :key="idx">
+              <div class="border border-surface-border rounded-xl overflow-hidden">
+                <div class="flex items-start gap-3 p-3 bg-surface">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/40 text-blue-300
+                               flex items-center justify-center text-xs font-bold"
+                        x-text="idx + 1"></span>
+                  <p class="text-sm font-semibold text-slate-200" x-text="passo.titulo"></p>
+                </div>
+                <div class="px-3 pb-3 bg-surface space-y-2">
+                  <div x-show="passo.formula">
+                    <div class="bg-surface-card border border-surface-border rounded-lg px-3 py-2 mt-1 overflow-x-auto">
+                      <code class="text-xs text-cyan-300 font-mono leading-relaxed whitespace-pre-wrap break-words"
+                            x-text="passo.formula"></code>
+                    </div>
+                  </div>
+                  <div x-show="passo.resultado"
+                       class="flex items-start gap-2 text-sm font-semibold text-blue-300">
+                    <i class="fa-solid fa-arrow-right text-xs mt-1 text-blue-500 shrink-0"></i>
+                    <span x-text="passo.resultado"></span>
+                  </div>
+                  <div x-show="passo.aviso"
+                       class="flex items-start gap-2 bg-red-900/20 border border-red-500/30 rounded-lg px-3 py-2">
+                    <i class="fa-solid fa-circle-exclamation text-red-400 text-sm shrink-0 mt-0.5"></i>
+                    <span class="text-xs text-red-300" x-text="passo.aviso"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+      </div><!-- /painel resultados -->
+
+    </div><!-- /coluna resultados -->
+
+  </div><!-- /grid principal -->
+
+  <!-- ── FAB "Ver Resultado" (mobile only) ─────────────────────────────── -->
+  <button class="fab-resultado"
+          x-show="results && !loading"
+          x-cloak
+          @click="window.scrollToResultados()">
+    <i class="fa-solid fa-chart-bar"></i>
+    Ver Resultado
+  </button>
+
+  <!-- ── Toast de sucesso ───────────────────────────────────────────────── -->
+  <div x-show="toast" x-cloak
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-y-4"
+       x-transition:enter-end="opacity-100 translate-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-end="opacity-0 translate-y-4"
+       class="fixed z-50 flex items-center gap-3
+              bg-emerald-700 border border-emerald-500/60 rounded-xl px-4 py-3 shadow-2xl"
+       style="bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px)); right: 1rem; max-width: calc(100vw - 2rem);">
+    <i class="fa-solid fa-circle-check text-emerald-300 shrink-0"></i>
+    <div class="min-w-0">
+      <p class="text-sm font-semibold text-white" x-text="toastMsg"></p>
+      <a :href="`/projeto/{{ projeto.id }}`"
+         class="text-xs text-emerald-200 hover:text-white underline">
+        Ver no projeto →
+      </a>
+    </div>
+    <button @click="toast = false" class="ml-2 text-emerald-300 hover:text-white shrink-0">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+</div><!-- /x-data -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+function calcularPage(pid) {
+  return {
+    pid,
+    activeTab: 'laje',
+    loading: false,
+    results: null,
+    erro: null,
+    salvar: true,
+    savedCalcId: null,
+    showPassos: true,
+    toast: false,
+    toastMsg: '',
+
+    tabs: [
+      { id: 'laje',      label: 'Laje',                  shortLabel: 'Laje',   icon: 'fa-solid fa-layer-group' },
+      { id: 'viga',      label: 'Viga',                  shortLabel: 'Viga',   icon: 'fa-solid fa-minus' },
+      { id: 'pilar',     label: 'Pilar',                 shortLabel: 'Pilar',  icon: 'fa-solid fa-up-long' },
+      { id: 'fundacao',  label: 'Fundação',              shortLabel: 'Fund.',  icon: 'fa-solid fa-mountain-sun' },
+      { id: 'muro',      label: 'Muro de Arrimo',        shortLabel: 'Muro',   icon: 'fa-solid fa-wall' },
+      { id: 'alvenaria', label: 'Alvenaria Estrutural',  shortLabel: 'Alven.', icon: 'fa-solid fa-bricks' },
+    ],
+
+    // ── Modelos de formulário ───────────────────────────────────────────
+    laje: {
+      subtipo: 'macica',
+      lx: 4.0, ly: 5.0,
+      g: 1.5, q: 1.5,
+      fck: 25, aco: 'CA-50',
+      cobrimento: 'CA-IV',
+      apoio: 'simples',
+      uso: 'residencial',
+      tipo_trelica: '',
+      descricao: '',
+    },
+
+    viga: {
+      l: 5.0,
+      bw_cm: 20, h_cm: 50,
+      g: 5.0, q: 3.0,
+      fck: 25, aco: 'CA-50',
+      cobrimento: 'CA-IV',
+      apoio: 'simples',
+      secao: 'retangular',
+      descricao: '',
+    },
+
+    pilar: {
+      Nd: 500, Mx: 0, My: 0,
+      b_cm: 20, h_cm: 30,
+      l: 3.0,
+      fck: 25, aco: 'CA-50',
+      cobrimento: 'CA-IV',
+      vinculo: 'biarticulado',
+      forma: 'retangular',
+      descricao: '',
+    },
+
+    fund: {
+      subtipo: 'sapata_isolada',
+      Nd: 500, Nk: 360,
+      b_pilar_cm: 20, h_pilar_cm: 30,
+      q: 20.0, l: 4.0,
+      nspt: 10, solo: 'areia',
+      Nk_est: 100, Nd_est: 140,
+      nspt_ponta: 15, nspt_fuste: 8,
+      h_estaca: 10, d_estaca_cm: 35,
+      tipo_estaca: 'concreto_moldada_local',
+      fck: 25, aco: 'CA-50',
+      descricao: '',
+    },
+
+    muro: {
+      H: 3.0, phi: 30, gamma_solo: 18,
+      q_sob: 0, sigma_adm: 150,
+      tipo: 'balanco',
+      fck: 25, aco: 'CA-50',
+      cobrimento: 'CA-II',
+      descricao: '',
+    },
+
+    alv: {
+      Nd: 50, h: 3.0, e_cm: 14,
+      bloco: 'concreto_6MPa',
+      vinculo: 'engastado_topo',
+      controle: 'normal',
+      descricao: '',
+    },
+
+    // ── Computed helpers ────────────────────────────────────────────────
+    get statusOk() {
+      if (!this.results) return true;
+      const r = this.results;
+      if (r.aprovado === false) return false;
+      if (r.capacidade_ok === false) return false;
+      if (r.tombamento_ok === false) return false;
+      if (r.deslizamento_ok === false) return false;
+      if (r.sigma_ok === false) return false;
+      return true;
+    },
+
+    get resultTitle() {
+      const labels = {
+        laje: 'Laje Maciça',
+        laje_trelicada: 'Laje Treliçada',
+        viga: 'Viga',
+        pilar: 'Pilar',
+        fundacao: 'Fundação',
+        muro: 'Muro de Arrimo',
+        alvenaria: 'Alvenaria Estrutural',
+      };
+      return labels[this.activeTab] || 'Resultado';
+    },
+
+    _ignoredKeys: new Set([
+      'passos', 'bitola_principal', 'bitola_secundaria',
+      'bitola_longitudinal', 'bitola_nervura', 'bitola_capa',
+      'bitola_tela', 'bitola', 'estribos', 'calculo_id',
+    ]),
+
+    get flatResults() {
+      if (!this.results) return [];
+      return Object.entries(this.results).filter(([k, v]) => {
+        if (this._ignoredKeys.has(k)) return false;
+        if (v === null || v === undefined) return false;
+        if (typeof v === 'object') return false;
+        return true;
+      });
+    },
+
+    get hasReinforcement() {
+      if (!this.results) return false;
+      const keys = ['bitola_principal', 'bitola_secundaria', 'bitola_longitudinal',
+                    'bitola_nervura', 'bitola_capa', 'bitola_tela', 'bitola', 'estribos'];
+      return keys.some(k => this.results[k]);
+    },
+
+    // ── Formatadores ────────────────────────────────────────────────────
+    formatKey(k) {
+      const labels = {
+        h_m: 'Espessura h', h_cm: 'Espessura (cm)', d_m: 'd útil (m)', d_cm: 'd útil (cm)',
+        lx_m: 'Vão lx (m)', ly_m: 'Vão ly (m)',
+        q_d_kNm2: 'q_d (kN/m²)', q_d_kNm: 'q_d (kN/m)',
+        Md_kNm: 'Md (kN.m)', Vd_kN: 'Vd (kN)',
+        As_min_cm2: 'As_min (cm²)', As_calc_cm2: 'As calc. (cm²)',
+        As_lon_cm2: 'As long. (cm²)', As_transv_cm2: 'As transv. (cm²)',
+        As_min_cm2m: 'As_min (cm²/m)', As_calc_cm2m: 'As calc. (cm²/m)',
+        rho_calc: 'ρ calculado', rho_min: 'ρ mínimo',
+        xi: 'ξ = x/d', xi_lim: 'ξ_lim', kMd: 'kMd (adim.)',
+        fck: 'fck (MPa)', fcd_MPa: 'fcd (MPa)', fyd_MPa: 'fyd (MPa)',
+        fctm_MPa: 'fctm (MPa)', cobrimento_mm: 'Cobrimento (mm)',
+        bw_m: 'bw (m)', bw_cm: 'bw (cm)', h_viga_m: 'h viga (m)',
+        Ac_cm2: 'Área seção (cm²)', Ic_cm4: 'I (cm⁴)',
+        le_m: 'Le esbeltez (m)', lambda: 'λ esbeltez',
+        lambda_lim: 'λ_lim', esbelta: 'É esbelta?',
+        Nd_kN: 'Nd (kN)', Nd_total_kN: 'Nd total (kN)',
+        nu: 'ν normal.', mu_x: 'μx', mu_y: 'μy',
+        As_total_cm2: 'As total (cm²)', n_barras_lon: 'Nº barras',
+        aprovado: 'Aprovado?', capacidade_ok: 'Capacidade OK?',
+        tipo_direcao: 'Direção', bidirecional: 'Bidirecional?',
+        alfa_x: 'αx (Marcus)', alfa_y: 'αy (Marcus)',
+        Mx_kNm: 'Mx (kN.m/m)', My_kNm: 'My (kN.m/m)',
+        PP_kNm2: 'Peso próprio (kN/m²)', g_total_kNm2: 'g total (kN/m²)',
+        sigma_solo_kNm2: 'σ solo (kN/m²)', sigma_adm_kNm2: 'σ_adm (kN/m²)',
+        A_sapata_m2: 'Área sapata (m²)', lado_sapata_m: 'Lado sapata (m)',
+        Ka: 'Ka (Rankine)', Ea_kNm: 'Ea (kN/m)', Ms_kNm: 'Ms estab.',
+        Mo_kNm: 'Mo tombo.', FST: 'FS tombamento', FSD: 'FS desliz.',
+        tombamento_ok: 'Tombamento OK?', deslizamento_ok: 'Deslizamento OK?',
+        sigma_max_kNm2: 'σ_max (kN/m²)', sigma_ok: 'σ solo OK?',
+        Qtotal_kN: 'Q_total estaca (kN)', QL_kN: 'Q_lateral (kN)', QP_kN: 'Q_ponta (kN)',
+        Nk_estaca_kN: 'Nk estaca (kN)', n_estacas: 'Nº estacas',
+        fd_MPa: 'fd (MPa)', fbk_MPa: 'fbk (MPa)',
+        Nd_kNm: 'Nd/m (kN/m)', sigma_nd_MPa: 'σ_Nd (MPa)',
+      };
+      return labels[k] || k.replace(/_/g, ' ');
+    },
+
+    formatVal(k, v) {
+      if (typeof v === 'boolean') return v ? 'Sim' : 'Não';
+      if (typeof v === 'number') {
+        if (Number.isInteger(v) && Math.abs(v) >= 100) return v.toString();
+        return v.toFixed(v < 1 && v > -1 && v !== 0 ? 4 : 2);
+      }
+      return String(v);
+    },
+
+    resultCardClass(k, v) {
+      const boolOk = ['aprovado', 'capacidade_ok', 'tombamento_ok', 'deslizamento_ok', 'sigma_ok', 'bidirecional'];
+      if (boolOk.includes(k)) return v ? 'text-emerald-400' : 'text-red-400';
+      if (k === 'esbelta' && v) return 'text-yellow-400';
+      return 'text-slate-100';
+    },
+
+    // ── Calcular ────────────────────────────────────────────────────────
+    resetResults() {
+      this.results = null;
+      this.erro = null;
+      this.savedCalcId = null;
+    },
+
+    _buildPayload(tipo) {
+      const pid = this.salvar ? this.pid : null;
+
+      if (tipo === 'laje') {
+        const d = { ...this.laje, projeto_id: pid };
+        if (d.subtipo === 'macica') {
+          d.lx = parseFloat(d.lx);
+          d.ly = parseFloat(d.ly);
+        } else {
+          d.lx = parseFloat(d.lx);
+        }
+        d.g = parseFloat(d.g);
+        d.q = parseFloat(d.q);
+        d.fck = parseFloat(d.fck);
+        return d;
+      }
+
+      if (tipo === 'viga') {
+        const d = { ...this.viga, projeto_id: pid };
+        d.l  = parseFloat(d.l);
+        d.bw = parseFloat(d.bw_cm) / 100;
+        d.h  = parseFloat(d.h_cm)  / 100;
+        d.g  = parseFloat(d.g);
+        d.q  = parseFloat(d.q);
+        d.fck = parseFloat(d.fck);
+        return d;
+      }
+
+      if (tipo === 'pilar') {
+        const d = { ...this.pilar, projeto_id: pid };
+        d.b   = parseFloat(d.b_cm) / 100;
+        d.h   = parseFloat(d.h_cm) / 100;
+        d.l   = parseFloat(d.l);
+        d.Nd  = parseFloat(d.Nd);
+        d.Mx  = parseFloat(d.Mx);
+        d.My  = parseFloat(d.My);
+        d.fck = parseFloat(d.fck);
+        return d;
+      }
+
+      if (tipo === 'fundacao') {
+        const sub = this.fund.subtipo;
+        const d = { subtipo: sub, projeto_id: pid };
+
+        if (sub === 'sapata_isolada') {
+          d.Nd      = parseFloat(this.fund.Nd);
+          d.Nk      = parseFloat(this.fund.Nk);
+          d.b_pilar = parseFloat(this.fund.b_pilar_cm) / 100;
+          d.h_pilar = parseFloat(this.fund.h_pilar_cm) / 100;
+          d.nspt    = parseInt(this.fund.nspt);
+          d.solo    = this.fund.solo;
+          d.fck     = parseFloat(this.fund.fck);
+          d.aco     = this.fund.aco;
+          d.descricao = this.fund.descricao;
+        } else if (sub === 'viga_baldrame') {
+          d.q    = parseFloat(this.fund.q);
+          d.l    = parseFloat(this.fund.l);
+          d.nspt = parseInt(this.fund.nspt);
+          d.solo = this.fund.solo;
+          d.fck  = parseFloat(this.fund.fck);
+          d.aco  = this.fund.aco;
+          d.descricao = this.fund.descricao;
+        } else if (sub === 'estaca') {
+          d.Nk         = parseFloat(this.fund.Nk);
+          d.Nd         = parseFloat(this.fund.Nd);
+          d.nspt_ponta = parseInt(this.fund.nspt_ponta);
+          d.nspt_fuste = parseFloat(this.fund.nspt_fuste);
+          d.h_estaca   = parseFloat(this.fund.h_estaca);
+          d.d_estaca   = parseFloat(this.fund.d_estaca_cm) / 100;
+          d.tipo_estaca = this.fund.tipo_estaca;
+          d.descricao  = this.fund.descricao;
+        }
+        return d;
+      }
+
+      if (tipo === 'muro') {
+        const d = { ...this.muro, projeto_id: pid };
+        d.H          = parseFloat(d.H);
+        d.phi        = parseFloat(d.phi);
+        d.gamma_solo = parseFloat(d.gamma_solo);
+        d.q_sob      = parseFloat(d.q_sob);
+        d.sigma_adm  = parseFloat(d.sigma_adm);
+        d.fck        = parseFloat(d.fck);
+        return d;
+      }
+
+      if (tipo === 'alvenaria') {
+        const d = { ...this.alv, projeto_id: pid };
+        d.Nd = parseFloat(d.Nd);
+        d.h  = parseFloat(d.h);
+        d.e  = parseFloat(d.e_cm) / 100;
+        return d;
+      }
+
+      return {};
+    },
+
+    async calcular(tipo) {
+      this.loading = true;
+      this.results = null;
+      this.erro    = null;
+      this.savedCalcId = null;
+
+      const endpoints = {
+        laje:      '/api/calcular/laje',
+        viga:      '/api/calcular/viga',
+        pilar:     '/api/calcular/pilar',
+        fundacao:  '/api/calcular/fundacao',
+        muro:      '/api/calcular/muro',
+        alvenaria: '/api/calcular/alvenaria',
+      };
+
+      const url = endpoints[tipo];
+      const payload = this._buildPayload(tipo);
+
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          this.erro = data.erro || `Erro ${resp.status}: falha no cálculo.`;
+        } else {
+          this.results = data;
+
+          if (data.calculo_id) {
+            this.savedCalcId = data.calculo_id;
+            this._showToast(`Cálculo salvo! ID #${data.calculo_id}`);
+          }
+        }
+      } catch (e) {
+        this.erro = `Falha de comunicação: ${e.message}`;
+      } finally {
+        this.loading = false;
+        this.$nextTick(() => {
+          window.scrollToResultados();
+        });
+      }
+    },
+
+    _showToast(msg) {
+      this.toastMsg = msg;
+      this.toast = true;
+      setTimeout(() => { this.toast = false; }, 5000);
+    },
+  };
+}
+</script>
+
+<style>
+  [x-cloak] { display: none !important; }
+  [x-collapse] { overflow: hidden; transition: height 0.25s ease; }
+  code.font-mono { white-space: pre-wrap; word-break: break-word; }
+</style>
+{% endblock %}

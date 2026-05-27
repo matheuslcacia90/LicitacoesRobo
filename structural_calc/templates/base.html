@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0F172A"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="StructCalc"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}"/>
+  <title>{% block title %}StructCalc{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          primary: { DEFAULT:'#1E3A5F', light:'#2563EB', muted:'#DBEAFE' },
+          surface: { DEFAULT:'#0F172A', card:'#1E293B', border:'#334155' },
+        },
+        screens: { xs: '390px' },
+      }}
+    }
+  </script>
+</head>
+<body class="bg-surface text-slate-100 min-h-screen flex flex-col pb-safe">
+
+<!-- Navbar sticky -->
+<nav class="bg-surface-card border-b border-surface-border sticky top-0 z-40
+            px-3 sm:px-6 py-2.5 flex items-center gap-2 shadow-lg">
+  <a href="{{ url_for('index') }}"
+     class="flex items-center gap-2 font-bold text-lg sm:text-xl text-blue-400 shrink-0">
+    <i class="fa-solid fa-calculator text-xl"></i>
+    <span>StructCalc</span>
+  </a>
+  <span class="text-slate-600 text-xs ml-1 hidden md:inline truncate">
+    Software de Cálculo Estrutural
+  </span>
+
+  <!-- Breadcrumb mobile -->
+  {% block nav_extra %}{% endblock %}
+
+  <div class="ml-auto flex items-center gap-2">
+    <a href="{{ url_for('novo_projeto') }}"
+       class="btn-primary py-2 px-3 sm:px-4 text-sm leading-none">
+      <i class="fa-solid fa-plus sm:mr-1.5"></i>
+      <span class="hidden sm:inline">Novo Projeto</span>
+    </a>
+  </div>
+</nav>
+
+<!-- Flash messages -->
+{% with msgs = get_flashed_messages(with_categories=True) %}
+  {% if msgs %}
+    <div class="px-3 sm:px-6 pt-3 space-y-2">
+      {% for cat, msg in msgs %}
+        <div class="alert alert-{{cat}} flex items-center gap-2 p-3 rounded-xl text-sm">
+          <i class="fa-solid fa-circle-info shrink-0"></i>
+          <span>{{ msg }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- Conteúdo -->
+<main class="flex-1 px-3 sm:px-6 py-4 sm:py-6">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Rodapé -->
+<footer class="border-t border-surface-border px-3 py-3 text-xs text-slate-600 text-center
+               pb-[env(safe-area-inset-bottom)]">
+  NBR 6118:2023 · NBR 6122:2019 · NBR 15961-1:2011
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('{{ url_for("static", filename="sw.js") }}');
+  }
+</script>
+</body>
+</html>

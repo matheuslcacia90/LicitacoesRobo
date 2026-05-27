@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% block title %}{{ projeto.nome }} – StructCalc{% endblock %}
+
+{% block nav_extra %}
+<span class="hidden sm:inline text-slate-600 mx-1">/</span>
+<span class="text-slate-400 text-xs hidden sm:inline truncate max-w-[160px]">{{ projeto.nome }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto" x-data="projetoPage({{ projeto.id }})">
+
+  <!-- Cabeçalho do projeto -->
+  <div class="mb-5">
+    <div class="flex items-start gap-3">
+      <a href="{{ url_for('index') }}"
+         class="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors p-1 -ml-1 shrink-0">
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+      </a>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-lg sm:text-2xl font-bold text-slate-100 truncate">{{ projeto.nome }}</h1>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 mt-1">
+          {% if projeto.local %}
+          <span class="flex items-center gap-1 truncate">
+            <i class="fa-solid fa-location-dot shrink-0"></i>{{ projeto.local }}
+          </span>
+          {% endif %}
+          {% if projeto.responsavel %}
+          <span class="flex items-center gap-1">
+            <i class="fa-solid fa-user shrink-0"></i>{{ projeto.responsavel }}
+          </span>
+          {% endif %}
+          <span class="flex items-center gap-1">
+            <i class="fa-solid fa-calendar shrink-0"></i>{{ projeto.criado_em.strftime('%d/%m/%Y') }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ações principais (mobile: grade 2 colunas + botão vermelho separado) -->
+    <div class="flex gap-2 mt-4 flex-wrap">
+      <a href="{{ url_for('calcular_page', pid=projeto.id) }}" class="btn-primary flex-1 sm:flex-none">
+        <i class="fa-solid fa-calculator mr-1.5"></i> Calcular
+      </a>
+      <a href="{{ url_for('relatorio', pid=projeto.id) }}" class="btn-secondary flex-1 sm:flex-none">
+        <i class="fa-solid fa-file-pdf mr-1.5"></i>
+        <span class="hidden xs:inline">Relatório </span>PDF
+      </a>
+      <button @click="modalExclusao=true" class="btn-danger px-3">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Layout: upload/arquivos + cálculos -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+
+    <!-- ── Coluna esquerda: Upload + Arquivos ── -->
+    <div class="lg:col-span-1 space-y-4">
+
+      <!-- Upload Zone -->
+      <div class="card">
+        <h2 class="font-semibold text-slate-200 mb-3 text-sm">
+          <i class="fa-solid fa-upload text-blue-400 mr-2"></i>Upload de Arquivos
+        </h2>
+
+        <label class="upload-zone block cursor-pointer"
+               @dragover.prevent @drop.prevent="handleDrop($event)">
+          <input type="file" class="hidden" multiple
+                 accept=".pdf,.dwg,.dxf,.ifc,.rvt,.png,.jpg"
+                 @change="uploadArquivos($event)"/>
+          <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500 mb-2"></i>
+          <p class="text-xs text-slate-400 mb-1">PDF, DWG, DXF, IFC, RVT</p>
+          <span class="btn-primary text-xs pointer-events-none inline-flex mt-1">
+            <i class="fa-solid fa-folder-open mr-1.5"></i>Selecionar Arquivo
+          </span>
+        </label>
+
+        <!-- Barra de progresso -->
+        <div x-show="uploadProgress > 0" class="mt-3">
+          <div class="bg-surface-border rounded-full h-1.5">
+            <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                 :style="`width: ${uploadProgress}%`"></div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1.5 text-center" x-text="uploadStatus"></p>
+        </div>
+      </div>
+
+      <!-- Lista de arquivos -->
+      <div class="card">
+        <h2 class="font-semibold text-slate-200 mb-3 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-folder text-yellow-400"></i>
+          Arquivos
+          <span class="text-xs text-slate-500 font-normal" x-text="`(${arquivos.length})`"></span>
+        </h2>
+
+        <div class="space-y-2" x-show="arquivos.length > 0">
+          <template x-for="arq in arquivos" :key="arq.id">
+            <div class="flex items-center gap-2.5 p-2.5 bg-surface rounded-xl">
+              <!-- Ícone de tipo -->
+              <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                   :class="{
+                     'bg-red-900/30':   arq.tipo==='pdf',
+                     'bg-yellow-900/30':['dwg','dxf'].includes(arq.tipo),
+                     'bg-green-900/30': arq.tipo==='ifc',
+                     'bg-blue-900/30':  arq.tipo==='rvt',
+                     'bg-slate-800':    !['pdf','dwg','dxf','ifc','rvt'].includes(arq.tipo),
+                   }">
+                <i class="fa-solid fa-file"
+                   :class="{
+                     'text-red-400':    arq.tipo==='pdf',
+                     'text-yellow-400': ['dwg','dxf'].includes(arq.tipo),
+                     'text-green-400':  arq.tipo==='ifc',
+                     'text-blue-400':   arq.tipo==='rvt',
+                     'text-slate-400':  true,
+                   }"></i>
+              </div>
+              <!-- Info -->
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium text-slate-200 truncate" x-text="arq.nome"></div>
+                <div class="text-xs text-slate-500" x-text="arq.criado_em"></div>
+              </div>
+              <!-- Ações (sempre visíveis no mobile via toque) -->
+              <button @click="verDadosArquivo(arq)"
+                      class="p-2 text-blue-400 hover:text-blue-300 rounded-lg hover:bg-blue-400/10
+                             transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center">
+                <i class="fa-solid fa-eye text-xs"></i>
+              </button>
+              <button @click="excluirArquivo(arq.id)"
+                      class="p-2 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-400/10
+                             transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center">
+                <i class="fa-solid fa-trash text-xs"></i>
+              </button>
+            </div>
+          </template>
+        </div>
+
+        <div x-show="arquivos.length === 0" class="text-center py-6 text-xs text-slate-500">
+          <i class="fa-solid fa-inbox text-2xl mb-2 text-slate-700"></i>
+          <p>Nenhum arquivo enviado</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Coluna direita: Cálculos salvos ── -->
+    <div class="lg:col-span-2">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-calculator text-blue-400"></i>
+          Cálculos Salvos
+          <span class="text-xs text-slate-500 font-normal">({{ calculos|length }})</span>
+        </h2>
+        <a href="{{ url_for('calcular_page', pid=projeto.id) }}" class="btn-sm">
+          <i class="fa-solid fa-plus mr-1"></i> Novo
+        </a>
+      </div>
+
+      {% if calculos %}
+        <div class="space-y-3">
+          {% for c in calculos %}
+          <div class="card p-0 overflow-hidden" x-data="{ open: false }">
+            <!-- Header do card (toque para expandir) -->
+            <button class="w-full flex items-center gap-3 p-3 sm:p-4 text-left
+                           active:bg-surface-border/30 transition-colors"
+                    @click="open = !open">
+              <div class="bg-primary/30 p-2 rounded-xl text-base shrink-0">
+                {{ {'laje_macica':'🧱','laje_trelicada':'⚙️','viga':'🔩','pilar':'🏛️',
+                    'fundacao_sapata_isolada':'⛏️','fundacao_viga_baldrame':'🏗️',
+                    'fundacao_estaca':'📍','muro_arrimo':'🪨','alvenaria':'🧱'
+                   }.get(c.elemento_tipo, '📐') }}
+              </div>
+              <div class="flex-1 min-w-0 text-left">
+                <div class="font-medium text-slate-100 text-sm truncate">
+                  {{ c.descricao or c.elemento_tipo.replace('_',' ').title() }}
+                </div>
+                <div class="text-xs text-slate-500">{{ c.criado_em.strftime('%d/%m/%Y %H:%M') }}</div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                {% set r = c.resultado %}
+                {% if r.get('aprovado') == false or r.get('capacidade_ok') == false
+                      or r.get('tombamento_ok') == false %}
+                  <span class="badge-danger">Verificar</span>
+                {% else %}
+                  <span class="badge-success">OK</span>
+                {% endif %}
+                <i class="fa-solid fa-chevron-down text-slate-500 text-xs transition-transform duration-200"
+                   :class="{'rotate-180': open}"></i>
+              </div>
+            </button>
+
+            <!-- Conteúdo expandido -->
+            <div x-show="open" x-collapse class="border-t border-surface-border">
+              <div class="p-3 sm:p-4 space-y-3">
+                {% set r = c.resultado %}
+
+                <!-- Grid de valores -->
+                <div class="result-grid">
+                  {% for k, v in r.items() if k not in ['passos','bitola_principal',
+                     'bitola_secundaria','bitola_longitudinal','bitola_nervura',
+                     'bitola_capa','bitola_tela','bitola','estribos','tipo','subtipo',
+                     'aco','cobrimento_mm','classe_esbeltez','aviso_esbeltez',
+                     'recomendacao','observacao','calculo_id']
+                     and v is not mapping and v is not sequence %}
+                  <div class="bg-surface rounded-lg p-2">
+                    <div class="text-xs text-slate-500 truncate">{{ k }}</div>
+                    <div class="text-sm font-medium text-slate-200 truncate">{{ v }}</div>
+                  </div>
+                  {% endfor %}
+                </div>
+
+                <!-- Armadura resumida -->
+                {% if r.get('bitola_principal') %}
+                <div class="bg-blue-950/40 border border-blue-800/30 rounded-xl p-3 text-xs text-blue-300">
+                  <strong>Armadura principal:</strong>
+                  Ø{{ r.bitola_principal.diam }}mm c/{{ r.bitola_principal.espacamento_cm }}cm
+                  → {{ r.bitola_principal.As_efetivo_cm2m }} cm²/m
+                </div>
+                {% endif %}
+                {% if r.get('As_lon_cm2') %}
+                {% set bl = r.get('bitola_longitudinal', {}) %}
+                <div class="bg-blue-950/40 border border-blue-800/30 rounded-xl p-3 text-xs text-blue-300">
+                  <strong>Arm. long.:</strong> {{ r.As_lon_cm2 }} cm²
+                  → Ø{{ bl.get('diam','—') }}mm
+                  {% if r.get('estribos') %}
+                  | Estribos Ø{{ r.estribos.phi_estribo_mm }}mm {{ r.estribos.n_ramos }}R c/{{ r.estribos.s_adot_cm }}cm
+                  {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="flex justify-end">
+                  <form method="POST" action="{{ url_for('excluir_calculo', cid=c.id) }}"
+                        onsubmit="return confirm('Excluir este cálculo?')">
+                    <button type="submit"
+                            class="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300
+                                   px-3 py-2 rounded-lg hover:bg-red-400/10 transition-colors min-h-[36px]">
+                      <i class="fa-solid fa-trash"></i> Excluir
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card text-center py-12 sm:py-16">
+          <i class="fa-solid fa-calculator text-4xl text-slate-700 mb-3"></i>
+          <p class="text-slate-400 text-sm mb-4">Nenhum cálculo realizado ainda.</p>
+          <a href="{{ url_for('calcular_page', pid=projeto.id) }}" class="btn-primary mx-auto">
+            <i class="fa-solid fa-calculator mr-1.5"></i> Iniciar Cálculo
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Modal: dados do arquivo ── -->
+  <div x-show="modalArquivo" x-cloak
+       class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50">
+    <div class="bg-surface-card rounded-t-2xl sm:rounded-2xl border border-surface-border
+                w-full sm:max-w-lg max-h-[85vh] overflow-auto">
+      <div class="flex items-center justify-between p-4 border-b border-surface-border sticky top-0 bg-surface-card">
+        <h3 class="font-semibold text-sm truncate" x-text="arquivoSel?.nome"></h3>
+        <button @click="modalArquivo=false"
+                class="p-2 text-slate-400 hover:text-white rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-4 text-sm space-y-3">
+        <template x-if="arquivoSel?.dados_extra">
+          <div class="space-y-3">
+            <div x-show="arquivoSel.dados_extra.dimensoes_m?.length">
+              <p class="font-semibold text-slate-300 mb-1.5 text-xs">Dimensões detectadas (m):</p>
+              <div class="flex flex-wrap gap-1.5">
+                <template x-for="d in arquivoSel.dados_extra.dimensoes_m">
+                  <span class="badge-blue" x-text="`${d}m`"></span>
+                </template>
+              </div>
+            </div>
+            <div x-show="arquivoSel.dados_extra.cargas_kNm2?.length">
+              <p class="font-semibold text-slate-300 mb-1.5 text-xs">Cargas (kN/m²):</p>
+              <div class="flex flex-wrap gap-1.5">
+                <template x-for="c in arquivoSel.dados_extra.cargas_kNm2">
+                  <span class="badge-yellow" x-text="`${c} kN/m²`"></span>
+                </template>
+              </div>
+            </div>
+            <div x-show="arquivoSel.dados_extra.palavras_chave?.length">
+              <p class="font-semibold text-slate-300 mb-1.5 text-xs">Elementos estruturais:</p>
+              <div class="flex flex-wrap gap-1.5">
+                <template x-for="p in arquivoSel.dados_extra.palavras_chave">
+                  <span class="badge-green" x-text="p"></span>
+                </template>
+              </div>
+            </div>
+            <div x-show="arquivoSel.dados_extra.mensagem"
+                 class="text-yellow-400 text-xs" x-text="arquivoSel.dados_extra.mensagem"></div>
+            <div x-show="arquivoSel.dados_extra.erro"
+                 class="text-red-400 text-xs" x-text="`Erro: ${arquivoSel.dados_extra.erro}`"></div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: confirmar exclusão ── -->
+  <div x-show="modalExclusao" x-cloak
+       class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50">
+    <div class="bg-surface-card rounded-t-2xl sm:rounded-2xl border border-surface-border
+                w-full sm:max-w-sm p-5 sm:p-6">
+      <h3 class="font-semibold text-lg mb-2 text-red-400">Excluir Projeto</h3>
+      <p class="text-sm text-slate-400 mb-5">
+        Excluir <strong class="text-slate-200">{{ projeto.nome }}</strong>?
+        Esta ação não pode ser desfeita.
+      </p>
+      <div class="flex gap-3">
+        <form method="POST" action="{{ url_for('excluir_projeto', pid=projeto.id) }}" class="flex-1">
+          <button type="submit" class="btn-danger w-full">Sim, excluir</button>
+        </form>
+        <button @click="modalExclusao=false" class="btn-secondary flex-1">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function projetoPage(pid) {
+  return {
+    pid,
+    arquivos: [],
+    uploadProgress: 0,
+    uploadStatus: '',
+    modalArquivo: false,
+    modalExclusao: false,
+    arquivoSel: null,
+
+    async init() { await this.carregarArquivos(); },
+
+    async carregarArquivos() {
+      const r = await fetch(`/projeto/${this.pid}/arquivos`);
+      this.arquivos = await r.json();
+    },
+
+    async uploadArquivos(evt) {
+      for (const file of evt.target.files) await this._upload(file);
+      evt.target.value = '';
+    },
+
+    async handleDrop(evt) {
+      for (const file of evt.dataTransfer.files) await this._upload(file);
+    },
+
+    async _upload(file) {
+      const fd = new FormData();
+      fd.append('arquivo', file);
+      this.uploadProgress = 15;
+      this.uploadStatus = `Enviando ${file.name}…`;
+      try {
+        const r = await fetch(`/projeto/${this.pid}/upload`, { method:'POST', body:fd });
+        const data = await r.json();
+        if (data.erro) {
+          showToast(`Erro: ${data.erro}`, 'danger');
+        } else {
+          this.uploadProgress = 100;
+          this.uploadStatus = `${file.name} enviado!`;
+          await this.carregarArquivos();
+          showToast(`${file.name} enviado com sucesso!`, 'success');
+          setTimeout(() => { this.uploadProgress = 0; this.uploadStatus = ''; }, 2500);
+        }
+      } catch(e) {
+        showToast(`Falha no upload`, 'danger');
+        this.uploadProgress = 0;
+      }
+    },
+
+    async excluirArquivo(aid) {
+      if (!confirm('Excluir arquivo?')) return;
+      await fetch(`/arquivo/${aid}/excluir`, { method:'POST' });
+      await this.carregarArquivos();
+      showToast('Arquivo excluído', 'info');
+    },
+
+    verDadosArquivo(arq) {
+      this.arquivoSel = arq;
+      this.modalArquivo = true;
+    },
+  }
+}
+</script>
+{% endblock %}
