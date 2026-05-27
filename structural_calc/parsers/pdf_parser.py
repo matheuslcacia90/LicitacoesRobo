@@ -95,5 +95,6 @@ def extrair_dimensoes_pdf(dados_arquivo: bytes, nome_arquivo: str = "") -> dict:
     resultado["dimensoes_m"]  = sorted(set(resultado["dimensoes_m"]))
     resultado["dimensoes_cm"] = sorted(set(resultado["dimensoes_cm"]))
     resultado["cargas_kNm2"]  = sorted(set(resultado["cargas_kNm2"]))
+    resultado["texto_bruto"]  = resultado["texto_completo"]  # alias para pipeline
 
     return resultado
