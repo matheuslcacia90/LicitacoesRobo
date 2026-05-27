@@ -33,6 +33,8 @@ try:
 except ImportError:
     RELATORIO_OK = False
 
+from .analysis.pipeline import analisar_e_calcular
+
 try:
     from .parsers import extrair_dimensoes_pdf, extrair_dimensoes_dxf
     from .parsers.dxf_parser import extrair_dimensoes_ifc
@@ -467,5 +469,56 @@ def create_app():
             "resultado": c.resultado,
             "criado_em": c.criado_em.strftime("%d/%m/%Y %H:%M"),
         })
+
+    # -----------------------------------------------------------------------
+    # API: análise automática do projeto
+    # -----------------------------------------------------------------------
+
+    @app.route("/projeto/<int:pid>/analisar", methods=["POST"])
+    def analisar_projeto(pid):
+        projeto = Projeto.query.get_or_404(pid)
+        arquivos = Arquivo.query.filter_by(projeto_id=pid).all()
+
+        arqs_texto = []
+        for arq in arquivos:
+            caminho = os.path.join(app.config["UPLOAD_FOLDER"], arq.nome_salvo)
+            texto = ""
+            try:
+                if arq.tipo_arquivo == "pdf":
+                    from .parsers.pdf_parser import extrair_dimensoes_pdf
+                    with open(caminho, "rb") as f:
+                        info = extrair_dimensoes_pdf(f.read(), arq.nome_original)
+                    texto = info.get("texto_bruto", "") + " " + " ".join(
+                        str(v) for v in info.get("dimensoes", [])
+                    )
+                elif arq.tipo_arquivo in ("dxf", "dwg"):
+                    from .parsers.dxf_parser import extrair_dimensoes_dxf
+                    with open(caminho, "rb") as f:
+                        info = extrair_dimensoes_dxf(f.read(), arq.nome_original)
+                    texto = info.get("texto_bruto", "") + " " + json.dumps(info)
+                elif arq.tipo_arquivo == "ifc":
+                    from .parsers.dxf_parser import extrair_dimensoes_ifc
+                    with open(caminho, "rb") as f:
+                        info = extrair_dimensoes_ifc(f.read(), arq.nome_original)
+                    texto = info.get("texto_bruto", "") + " " + json.dumps(info)
+            except Exception:
+                pass
+
+            if arq.dados_extra:
+                texto += " " + json.dumps(arq.dados_extra)
+
+            arqs_texto.append({
+                "nome_original": arq.nome_original,
+                "dados_texto": texto,
+            })
+
+        # Inclui nome e descrição do projeto como texto de contexto
+        arqs_texto.append({
+            "nome_original": "Projeto",
+            "dados_texto": f"{projeto.nome} {projeto.descricao or ''} {projeto.local or ''}",
+        })
+
+        resultado = analisar_e_calcular(pid, arqs_texto, db.session)
+        return jsonify(resultado)
 
     return app
