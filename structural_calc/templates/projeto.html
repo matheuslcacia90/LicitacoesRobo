@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}{{ projeto.nome }} – StructCalc{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto" x-data="projetoPage({{ projeto.id }})">
+
+  <!-- Cabeçalho -->
+  <div class="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+    <div class="flex items-center gap-3">
+      <a href="{{ url_for('index') }}" class="text-slate-400 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-arrow-left"></i>
+      </a>
+      <div>
+        <h1 class="text-2xl font-bold text-slate-100">{{ projeto.nome }}</h1>
+        <div class="flex gap-4 text-xs text-slate-400 mt-1">
+          {% if projeto.local %}<span><i class="fa-solid fa-location-dot mr-1"></i>{{ projeto.local }}</span>{% endif %}
+          {% if projeto.responsavel %}<span><i class="fa-solid fa-user mr-1"></i>{{ projeto.responsavel }}</span>{% endif %}
+          <span><i class="fa-solid fa-calendar mr-1"></i>{{ projeto.criado_em.strftime('%d/%m/%Y') }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="ml-auto flex gap-2 flex-wrap">
+      <a href="{{ url_for('calcular_page', pid=projeto.id) }}" class="btn-primary">
+        <i class="fa-solid fa-calculator mr-1"></i> Calcular
+      </a>
+      <a href="{{ url_for('relatorio', pid=projeto.id) }}" class="btn-secondary"
+         title="Gerar memorial PDF">
+        <i class="fa-solid fa-file-pdf mr-1"></i> Relatório PDF
+      </a>
+      <button @click="confirmarExclusao()" class="btn-danger">
+        <i class="fa-solid fa-trash mr-1"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Coluna esquerda: Upload + Arquivos -->
+    <div class="lg:col-span-1 space-y-4">
+
+      <!-- Upload -->
+      <div class="card">
+        <h2 class="font-semibold text-slate-200 mb-3">
+          <i class="fa-solid fa-upload text-blue-400 mr-2"></i>Upload de Arquivos
+        </h2>
+        <div class="border-2 border-dashed border-surface-border rounded-lg p-4 text-center"
+             @dragover.prevent @drop.prevent="handleDrop($event)">
+          <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500 mb-2"></i>
+          <p class="text-xs text-slate-400 mb-2">PDF, DWG, DXF, IFC, RVT</p>
+          <label class="btn-primary text-xs cursor-pointer">
+            <i class="fa-solid fa-folder-open mr-1"></i> Selecionar Arquivo
+            <input type="file" class="hidden" multiple
+                   accept=".pdf,.dwg,.dxf,.ifc,.rvt,.png,.jpg"
+                   @change="uploadArquivos($event)"/>
+          </label>
+        </div>
+
+        <!-- Progresso -->
+        <div x-show="uploadProgress > 0" class="mt-2">
+          <div class="bg-surface-border rounded-full h-1.5">
+            <div class="bg-blue-500 h-1.5 rounded-full transition-all"
+                 :style="`width: ${uploadProgress}%`"></div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1" x-text="uploadStatus"></p>
+        </div>
+      </div>
+
+      <!-- Lista de arquivos -->
+      <div class="card">
+        <h2 class="font-semibold text-slate-200 mb-3">
+          <i class="fa-solid fa-folder text-yellow-400 mr-2"></i>Arquivos
+          <span class="text-xs text-slate-500 ml-1" x-text="`(${arquivos.length})`"></span>
+        </h2>
+        <div class="space-y-2" x-show="arquivos.length > 0">
+          <template x-for="arq in arquivos" :key="arq.id">
+            <div class="flex items-center gap-2 p-2 bg-surface rounded-lg group">
+              <i class="fa-solid fa-file text-sm"
+                 :class="{'text-red-400': arq.tipo==='pdf', 'text-yellow-400': ['dwg','dxf'].includes(arq.tipo),
+                           'text-green-400': arq.tipo==='ifc', 'text-blue-400': arq.tipo==='rvt',
+                           'text-slate-400': true}"></i>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium text-slate-200 truncate" x-text="arq.nome"></div>
+                <div class="text-xs text-slate-500" x-text="arq.criado_em"></div>
+              </div>
+              <button @click="verDadosArquivo(arq)"
+                      class="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 text-xs p-1">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+              <button @click="excluirArquivo(arq.id)"
+                      class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-xs p-1">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </template>
+        </div>
+        <div x-show="arquivos.length === 0" class="text-center py-4 text-xs text-slate-500">
+          Nenhum arquivo enviado
+        </div>
+      </div>
+    </div>
+
+    <!-- Coluna direita: Cálculos salvos -->
+    <div class="lg:col-span-2">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-slate-200">
+          <i class="fa-solid fa-calculator text-blue-400 mr-2"></i>Cálculos Salvos
+          <span class="text-xs text-slate-500 ml-1">({{ calculos|length }})</span>
+        </h2>
+        <a href="{{ url_for('calcular_page', pid=projeto.id) }}" class="btn-sm">
+          <i class="fa-solid fa-plus mr-1"></i> Novo Cálculo
+        </a>
+      </div>
+
+      {% if calculos %}
+        <div class="space-y-3">
+          {% for c in calculos %}
+            <div class="card" x-data="{ open: false }">
+              <div class="flex items-center gap-3 cursor-pointer" @click="open = !open">
+                <div class="bg-primary/30 p-2 rounded-lg text-sm">
+                  {{ {'laje_macica':'🧱','laje_trelicada':'⚙️','viga':'🔩','pilar':'🏛️',
+                      'fundacao_sapata_isolada':'⛏️','fundacao_viga_baldrame':'🏗️',
+                      'fundacao_estaca':'📍','muro_arrimo':'🧱','alvenaria':'🧱'}.get(c.elemento_tipo, '📐') }}
+                </div>
+                <div class="flex-1">
+                  <div class="font-medium text-slate-100 text-sm">{{ c.descricao or c.elemento_tipo }}</div>
+                  <div class="text-xs text-slate-500">{{ c.criado_em.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  {% set r = c.resultado %}
+                  {% if r.get('aprovado') == false or r.get('capacidade_ok') == false
+                        or r.get('tombamento_ok') == false %}
+                    <span class="badge-danger">Verificar</span>
+                  {% else %}
+                    <span class="badge-success">OK</span>
+                  {% endif %}
+                  <i class="fa-solid fa-chevron-down text-slate-500 transition-transform"
+                     :class="{'rotate-180': open}"></i>
+                </div>
+              </div>
+
+              <!-- Resumo expandido -->
+              <div x-show="open" x-collapse class="mt-3 pt-3 border-t border-surface-border">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {% set r = c.resultado %}
+                  {% for k, v in r.items() if k not in ['passos','bitola_principal','bitola_secundaria',
+                     'bitola_longitudinal','bitola_nervura','bitola_capa','bitola_tela',
+                     'bitola','estribos','tipo','subtipo','aco','cobrimento_mm'] and v is not mapping and v is not sequence %}
+                    <div class="bg-surface rounded p-2">
+                      <div class="text-xs text-slate-500">{{ k }}</div>
+                      <div class="text-sm font-medium text-slate-200 truncate">{{ v }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <!-- Bitola selecionada -->
+                {% if r.get('bitola_principal') %}
+                  <div class="mt-2 p-2 bg-blue-900/20 rounded text-xs text-blue-300">
+                    <strong>Armadura Principal:</strong>
+                    Ø{{ r.bitola_principal.diam }}mm c/{{ r.bitola_principal.espacamento_cm }}cm →
+                    {{ r.bitola_principal.As_efetivo_cm2m }} cm²/m
+                  </div>
+                {% endif %}
+                {% if r.get('As_lon_cm2') %}
+                  {% set bl = r.get('bitola_longitudinal', {}) %}
+                  <div class="mt-2 p-2 bg-blue-900/20 rounded text-xs text-blue-300">
+                    <strong>Armadura Long.:</strong> {{ r.As_lon_cm2 }} cm² →
+                    Ø{{ bl.get('diam','—') }}mm
+                    {% if r.get('estribos') %}
+                      | Estribos: Ø{{ r.estribos.phi_estribo_mm }}mm {{ r.estribos.n_ramos }}R c/{{ r.estribos.s_adot_cm }}cm
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                <div class="flex justify-end mt-2">
+                  <form method="POST" action="{{ url_for('excluir_calculo', cid=c.id) }}"
+                        onsubmit="return confirm('Excluir este cálculo?')">
+                    <button type="submit" class="text-xs text-red-400 hover:text-red-300">
+                      <i class="fa-solid fa-trash mr-1"></i>Excluir
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card text-center py-12">
+          <i class="fa-solid fa-calculator text-4xl text-slate-600 mb-3"></i>
+          <p class="text-slate-400 mb-3">Nenhum cálculo realizado ainda.</p>
+          <a href="{{ url_for('calcular_page', pid=projeto.id) }}" class="btn-primary">
+            <i class="fa-solid fa-calculator mr-1"></i> Iniciar Cálculo
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Modal dados do arquivo -->
+  <div x-show="modalArquivo" x-cloak
+       class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-surface-card rounded-xl border border-surface-border max-w-lg w-full max-h-[80vh] overflow-auto">
+      <div class="flex items-center justify-between p-4 border-b border-surface-border">
+        <h3 class="font-semibold" x-text="arquivoSel?.nome"></h3>
+        <button @click="modalArquivo=false" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-4 text-sm space-y-3">
+        <template x-if="arquivoSel?.dados_extra">
+          <div>
+            <div x-show="arquivoSel.dados_extra.dimensoes_m?.length">
+              <strong class="text-slate-300">Dimensões detectadas (m):</strong>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <template x-for="d in arquivoSel.dados_extra.dimensoes_m">
+                  <span class="badge-blue" x-text="`${d}m`"></span>
+                </template>
+              </div>
+            </div>
+            <div x-show="arquivoSel.dados_extra.cargas_kNm2?.length" class="mt-2">
+              <strong class="text-slate-300">Cargas detectadas (kN/m²):</strong>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <template x-for="c in arquivoSel.dados_extra.cargas_kNm2">
+                  <span class="badge-yellow" x-text="`${c} kN/m²`"></span>
+                </template>
+              </div>
+            </div>
+            <div x-show="arquivoSel.dados_extra.palavras_chave?.length" class="mt-2">
+              <strong class="text-slate-300">Elementos estruturais:</strong>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <template x-for="p in arquivoSel.dados_extra.palavras_chave">
+                  <span class="badge-green" x-text="p"></span>
+                </template>
+              </div>
+            </div>
+            <div x-show="arquivoSel.dados_extra.mensagem" class="mt-2 text-yellow-400 text-xs"
+                 x-text="arquivoSel.dados_extra.mensagem"></div>
+            <div x-show="arquivoSel.dados_extra.erro" class="mt-2 text-red-400 text-xs"
+                 x-text="`Erro: ${arquivoSel.dados_extra.erro}`"></div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal confirmar exclusão do projeto -->
+  <div x-show="modalExclusao" x-cloak
+       class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-surface-card rounded-xl border border-surface-border max-w-sm w-full p-6">
+      <h3 class="font-semibold text-lg mb-2 text-red-400">Excluir Projeto</h3>
+      <p class="text-sm text-slate-400 mb-4">
+        Tem certeza que deseja excluir <strong class="text-slate-200">{{ projeto.nome }}</strong>?
+        Esta ação não pode ser desfeita.
+      </p>
+      <div class="flex gap-3">
+        <form method="POST" action="{{ url_for('excluir_projeto', pid=projeto.id) }}" class="flex-1">
+          <button type="submit" class="btn-danger w-full">Sim, excluir</button>
+        </form>
+        <button @click="modalExclusao=false" class="btn-secondary flex-1">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function projetoPage(pid) {
+  return {
+    pid,
+    arquivos: [],
+    uploadProgress: 0,
+    uploadStatus: '',
+    modalArquivo: false,
+    modalExclusao: false,
+    arquivoSel: null,
+
+    async init() {
+      await this.carregarArquivos();
+    },
+    async carregarArquivos() {
+      const r = await fetch(`/projeto/${this.pid}/arquivos`);
+      this.arquivos = await r.json();
+    },
+    async uploadArquivos(evt) {
+      for (const file of evt.target.files) {
+        await this._upload(file);
+      }
+      evt.target.value = '';
+    },
+    async handleDrop(evt) {
+      for (const file of evt.dataTransfer.files) {
+        await this._upload(file);
+      }
+    },
+    async _upload(file) {
+      const fd = new FormData();
+      fd.append('arquivo', file);
+      this.uploadProgress = 10;
+      this.uploadStatus = `Enviando ${file.name}…`;
+      try {
+        const r = await fetch(`/projeto/${this.pid}/upload`, { method: 'POST', body: fd });
+        const data = await r.json();
+        if (data.erro) {
+          alert(`Erro: ${data.erro}`);
+        } else {
+          this.uploadProgress = 100;
+          this.uploadStatus = `${file.name} enviado!`;
+          await this.carregarArquivos();
+          setTimeout(() => { this.uploadProgress = 0; this.uploadStatus = ''; }, 2000);
+        }
+      } catch(e) {
+        alert(`Falha no upload: ${e}`);
+        this.uploadProgress = 0;
+      }
+    },
+    async excluirArquivo(aid) {
+      if (!confirm('Excluir arquivo?')) return;
+      await fetch(`/arquivo/${aid}/excluir`, { method: 'POST' });
+      await this.carregarArquivos();
+    },
+    verDadosArquivo(arq) {
+      this.arquivoSel = arq;
+      this.modalArquivo = true;
+    },
+    confirmarExclusao() {
+      this.modalExclusao = true;
+    }
+  }
+}
+</script>
+{% endblock %}

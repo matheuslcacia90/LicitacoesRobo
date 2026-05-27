@@ -1,0 +1,191 @@
+/* StructCalc – estilos globais */
+
+/* Collapse plugin para Alpine.js (simples) */
+[x-cloak] { display: none !important; }
+
+/* Cards */
+.card {
+  background: #1E293B;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+/* Botões */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  background: #2563EB;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.btn-primary:hover { background: #1D4ED8; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  background: #334155;
+  color: #CBD5E1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #475569;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.btn-secondary:hover { background: #475569; }
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  background: #7F1D1D;
+  color: #FCA5A5;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #991B1B;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.btn-danger:hover { background: #991B1B; color: #fff; }
+
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  background: #1E3A5F;
+  color: #93C5FD;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.4rem;
+  border: 1px solid #2563EB;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.btn-sm:hover { background: #2563EB; color: #fff; }
+
+/* Formulários */
+.label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #94A3B8;
+  margin-bottom: 0.35rem;
+}
+
+.input-field,
+.select-field {
+  display: block;
+  width: 100%;
+  background: #0F172A;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  color: #E2E8F0;
+  font-size: 0.875rem;
+  padding: 0.45rem 0.75rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-field:focus,
+.select-field:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+.select-field {
+  cursor: pointer;
+}
+textarea.input-field { resize: vertical; }
+
+/* Badges */
+.badge-success { display:inline-block; background:#14532D; color:#86EFAC; font-size:0.7rem; font-weight:600; padding:0.15rem 0.5rem; border-radius:9999px; }
+.badge-danger  { display:inline-block; background:#7F1D1D; color:#FCA5A5; font-size:0.7rem; font-weight:600; padding:0.15rem 0.5rem; border-radius:9999px; }
+.badge-blue    { display:inline-block; background:#1E3A5F; color:#93C5FD; font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:9999px; }
+.badge-yellow  { display:inline-block; background:#713F12; color:#FDE68A; font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:9999px; }
+.badge-green   { display:inline-block; background:#14532D; color:#86EFAC; font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:9999px; }
+
+/* Alerts */
+.alert-success { background:#14532D; color:#86EFAC; border: 1px solid #166534; }
+.alert-danger  { background:#7F1D1D; color:#FCA5A5; border: 1px solid #991B1B; }
+.alert-info    { background:#1E3A5F; color:#93C5FD; border: 1px solid #1D4ED8; }
+.alert-warning { background:#713F12; color:#FDE68A; border: 1px solid #92400E; }
+
+/* Tab active */
+.tab-active {
+  color: #60A5FA;
+  border-bottom: 2px solid #2563EB;
+  font-weight: 600;
+}
+.tab-inactive {
+  color: #94A3B8;
+  border-bottom: 2px solid transparent;
+}
+.tab-inactive:hover { color: #CBD5E1; }
+
+/* Resultado fórmula */
+.formula-box {
+  background: #0F172A;
+  border: 1px solid #334155;
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.8rem;
+  color: #A5F3FC;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Resultado texto */
+.resultado-box {
+  background: #1E3A5F;
+  border-left: 3px solid #2563EB;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-size: 0.875rem;
+  color: #DBEAFE;
+  font-weight: 500;
+}
+
+/* Animação de carregamento */
+.spinner {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid #334155;
+  border-top-color: #2563EB;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0F172A; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Collapse animation */
+[x-collapse] {
+  overflow: hidden;
+  transition: height 0.25s ease;
+}

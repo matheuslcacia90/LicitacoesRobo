@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Novo Projeto – StructCalc{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{{ url_for('index') }}" class="text-slate-400 hover:text-blue-400 transition-colors">
+      <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <h1 class="text-2xl font-bold">Novo Projeto</h1>
+  </div>
+
+  <form method="POST" class="card space-y-4">
+    <div>
+      <label class="label">Nome do Projeto <span class="text-red-400">*</span></label>
+      <input type="text" name="nome" required placeholder="Ex.: Residência Unifamiliar – João Silva"
+             class="input-field"/>
+    </div>
+    <div>
+      <label class="label">Local / Endereço</label>
+      <input type="text" name="local" placeholder="Ex.: Rua das Flores, 123 – São Paulo, SP"
+             class="input-field"/>
+    </div>
+    <div>
+      <label class="label">Responsável Técnico</label>
+      <input type="text" name="responsavel" placeholder="Nome do engenheiro responsável"
+             class="input-field"/>
+    </div>
+    <div>
+      <label class="label">Descrição</label>
+      <textarea name="descricao" rows="3"
+                placeholder="Breve descrição do projeto, sistema estrutural adotado, etc."
+                class="input-field resize-none"></textarea>
+    </div>
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="btn-primary flex-1">
+        <i class="fa-solid fa-check mr-1"></i> Criar Projeto
+      </button>
+      <a href="{{ url_for('index') }}" class="btn-secondary flex-1 text-center">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

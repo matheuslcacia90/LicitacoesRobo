@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}StructCalc – Projetos{% endblock %}
+{% block content %}
+
+<div class="max-w-5xl mx-auto">
+  <!-- Hero -->
+  <div class="rounded-2xl bg-gradient-to-br from-primary to-primary-light p-8 mb-8 shadow-lg">
+    <h1 class="text-3xl font-bold mb-2">Software de Cálculo Estrutural</h1>
+    <p class="text-blue-200 text-sm leading-relaxed max-w-2xl">
+      Upload de plantas (PDF, DWG, IFC, RVT), cálculo automático de lajes, vigas, pilares,
+      fundações, muros de arrimo e alvenaria estrutural conforme normas NBR.
+      Memorial de cálculo e dimensionamento de ferragem em PDF.
+    </p>
+    <div class="mt-4 flex flex-wrap gap-3 text-xs text-blue-100">
+      <span class="bg-white/10 px-3 py-1 rounded-full">NBR 6118:2023</span>
+      <span class="bg-white/10 px-3 py-1 rounded-full">NBR 6122:2019</span>
+      <span class="bg-white/10 px-3 py-1 rounded-full">NBR 6120:2019</span>
+      <span class="bg-white/10 px-3 py-1 rounded-full">NBR 15961-1:2011</span>
+    </div>
+  </div>
+
+  <!-- Projetos -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold text-slate-200">Meus Projetos</h2>
+    <a href="{{ url_for('novo_projeto') }}" class="btn-primary">
+      <i class="fa-solid fa-plus mr-1"></i> Novo Projeto
+    </a>
+  </div>
+
+  {% if projetos %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for p in projetos %}
+        <div class="card hover:border-blue-500/50 transition-colors group">
+          <div class="flex items-start justify-between mb-3">
+            <div class="bg-primary/30 p-2 rounded-lg">
+              <i class="fa-solid fa-building-columns text-blue-400 text-xl"></i>
+            </div>
+            <span class="text-xs text-slate-500">{{ p.criado_em.strftime('%d/%m/%Y') }}</span>
+          </div>
+          <h3 class="font-semibold text-slate-100 group-hover:text-blue-400 transition-colors mb-1">
+            {{ p.nome }}
+          </h3>
+          {% if p.local %}
+            <p class="text-xs text-slate-400 mb-1"><i class="fa-solid fa-location-dot mr-1"></i>{{ p.local }}</p>
+          {% endif %}
+          {% if p.responsavel %}
+            <p class="text-xs text-slate-400 mb-2"><i class="fa-solid fa-user mr-1"></i>{{ p.responsavel }}</p>
+          {% endif %}
+          {% if p.descricao %}
+            <p class="text-xs text-slate-500 mb-3 line-clamp-2">{{ p.descricao }}</p>
+          {% endif %}
+          <div class="flex items-center justify-between pt-2 border-t border-surface-border">
+            <div class="flex gap-2 text-xs text-slate-500">
+              <span><i class="fa-solid fa-calculator mr-1"></i>{{ p.calculos|length }} cálculos</span>
+              <span><i class="fa-solid fa-file mr-1"></i>{{ p.arquivos|length }} arquivos</span>
+            </div>
+            <a href="{{ url_for('projeto', pid=p.id) }}" class="btn-sm">Abrir →</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card text-center py-16">
+      <i class="fa-solid fa-folder-open text-4xl text-slate-600 mb-4"></i>
+      <p class="text-slate-400 mb-4">Nenhum projeto criado ainda.</p>
+      <a href="{{ url_for('novo_projeto') }}" class="btn-primary">
+        <i class="fa-solid fa-plus mr-1"></i> Criar Primeiro Projeto
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- Recursos do sistema -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
+    {% for icon, titulo, desc in [
+        ('fa-file-pdf','Upload PDF','Extração automática de dimensões e cargas'),
+        ('fa-drafting-compass','DWG / DXF','Parsing de plantas CAD'),
+        ('fa-cubes','IFC / RVT','Modelos BIM Revit e IFC'),
+        ('fa-file-pdf','Relatório PDF','Memorial de cálculo completo'),
+    ] %}
+    <div class="card text-center py-4">
+      <i class="fa-solid {{ icon }} text-2xl text-blue-400 mb-2"></i>
+      <div class="font-medium text-sm text-slate-200">{{ titulo }}</div>
+      <div class="text-xs text-slate-500 mt-1">{{ desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
