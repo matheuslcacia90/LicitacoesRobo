@@ -214,6 +214,21 @@ def create_app():
         db.session.commit()
         return c.id
 
+    def _num(d, campo, minimo=None, maximo=None, default=None):
+        """Extrai e valida campo numérico; levanta ValueError com mensagem clara."""
+        raw = d.get(campo, default)
+        if raw is None:
+            raise ValueError(f"Campo obrigatório ausente: '{campo}'")
+        try:
+            v = float(raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"'{campo}' deve ser numérico (recebeu: {raw!r})")
+        if minimo is not None and v < minimo:
+            raise ValueError(f"'{campo}' deve ser ≥ {minimo} (recebeu {v})")
+        if maximo is not None and v > maximo:
+            raise ValueError(f"'{campo}' deve ser ≤ {maximo} (recebeu {v})")
+        return v
+
     @app.route("/api/calcular/laje", methods=["POST"])
     def api_laje():
         d = request.get_json(force=True)
@@ -223,11 +238,11 @@ def create_app():
         try:
             if subtipo == "macica":
                 res = calcular_laje_macica(
-                    lx_m=float(d["lx"]),
-                    ly_m=float(d["ly"]),
-                    g_kNm2=float(d.get("g", 1.0)),
-                    q_kNm2=float(d.get("q", 1.5)),
-                    fck=float(d.get("fck", 25)),
+                    lx_m=_num(d, "lx", 0.5, 20),
+                    ly_m=_num(d, "ly", 0.5, 25),
+                    g_kNm2=_num(d, "g", 0, 30, 1.0),
+                    q_kNm2=_num(d, "q", 0, 20, 1.5),
+                    fck=int(_num(d, "fck", 20, 90, 25)),
                     aco=d.get("aco", "CA-50"),
                     cobrimento_classe=d.get("cobrimento", "CA-IV"),
                     tipo_apoio=d.get("apoio", "simples"),
@@ -235,10 +250,10 @@ def create_app():
                 )
             else:
                 res = calcular_laje_trelicada(
-                    lx_m=float(d["lx"]),
-                    g_kNm2=float(d.get("g", 1.0)),
-                    q_kNm2=float(d.get("q", 1.5)),
-                    fck=float(d.get("fck", 25)),
+                    lx_m=_num(d, "lx", 0.5, 20),
+                    g_kNm2=_num(d, "g", 0, 30, 1.0),
+                    q_kNm2=_num(d, "q", 0, 20, 1.5),
+                    fck=int(_num(d, "fck", 20, 90, 25)),
                     tipo_trelica=d.get("tipo_trelica", "12+04"),
                     aco=d.get("aco", "CA-50"),
                     cobrimento_classe=d.get("cobrimento", "CA-IV"),
@@ -262,12 +277,12 @@ def create_app():
         pid = d.get("projeto_id")
         try:
             res = calcular_viga(
-                l_m=float(d["l"]),
-                bw_m=float(d.get("bw", 0.20)),
-                h_m=float(d.get("h", 0.50)),
-                g_kNm=float(d.get("g", 5.0)),
-                q_kNm=float(d.get("q", 3.0)),
-                fck=float(d.get("fck", 25)),
+                l_m=_num(d, "l", 0.5, 30),
+                bw_m=_num(d, "bw", 0.10, 1.5, 0.20),
+                h_m=_num(d, "h", 0.20, 2.5, 0.50),
+                g_kNm=_num(d, "g", 0, 200, 5.0),
+                q_kNm=_num(d, "q", 0, 200, 3.0),
+                fck=int(_num(d, "fck", 20, 90, 25)),
                 aco=d.get("aco", "CA-50"),
                 cobrimento_classe=d.get("cobrimento", "CA-IV"),
                 tipo_apoio=d.get("apoio", "simples"),
@@ -290,13 +305,13 @@ def create_app():
         pid = d.get("projeto_id")
         try:
             res = calcular_pilar(
-                Nd_kN=float(d["Nd"]),
-                Mx_kNm=float(d.get("Mx", 0)),
-                My_kNm=float(d.get("My", 0)),
-                b_m=float(d.get("b", 0.20)),
-                h_m=float(d.get("h", 0.30)),
-                l_m=float(d.get("l", 3.0)),
-                fck=float(d.get("fck", 25)),
+                Nd_kN=_num(d, "Nd", 1, 50000),
+                Mx_kNm=_num(d, "Mx", None, None, 0),
+                My_kNm=_num(d, "My", None, None, 0),
+                b_m=_num(d, "b", 0.12, 3.0, 0.20),
+                h_m=_num(d, "h", 0.12, 3.0, 0.30),
+                l_m=_num(d, "l", 0.5, 50, 3.0),
+                fck=int(_num(d, "fck", 20, 90, 25)),
                 aco=d.get("aco", "CA-50"),
                 cobrimento_classe=d.get("cobrimento", "CA-IV"),
                 condicao_vinculo=d.get("vinculo", "biarticulado"),
@@ -318,35 +333,36 @@ def create_app():
         subtipo = d.get("subtipo", "sapata_isolada")
         try:
             if subtipo == "sapata_isolada":
+                Nd = _num(d, "Nd", 10, 50000)
                 res = calcular_sapata_isolada(
-                    Nd_kN=float(d["Nd"]),
-                    Nk_kN=float(d.get("Nk", float(d["Nd"]) / 1.4)),
-                    b_pilar_m=float(d.get("b_pilar", 0.20)),
-                    h_pilar_m=float(d.get("h_pilar", 0.30)),
-                    n_spt=int(d.get("nspt", 10)),
+                    Nd_kN=Nd,
+                    Nk_kN=_num(d, "Nk", 1, None, Nd / 1.4),
+                    b_pilar_m=_num(d, "b_pilar", 0.12, 2.0, 0.20),
+                    h_pilar_m=_num(d, "h_pilar", 0.12, 2.0, 0.30),
+                    n_spt=int(_num(d, "nspt", 1, 60, 10)),
                     tipo_solo=d.get("solo", "areia"),
-                    fck=float(d.get("fck", 25)),
+                    fck=int(_num(d, "fck", 20, 90, 25)),
                     aco=d.get("aco", "CA-50"),
                     cobrimento_classe=d.get("cobrimento", "CA-III"),
                 )
             elif subtipo == "viga_baldrame":
                 res = calcular_viga_baldrame(
-                    q_kNm=float(d.get("q", 20.0)),
-                    l_m=float(d.get("l", 4.0)),
-                    n_spt=int(d.get("nspt", 10)),
+                    q_kNm=_num(d, "q", 1, 500, 20.0),
+                    l_m=_num(d, "l", 0.5, 20, 4.0),
+                    n_spt=int(_num(d, "nspt", 1, 60, 10)),
                     tipo_solo=d.get("solo", "areia"),
-                    fck=float(d.get("fck", 25)),
+                    fck=int(_num(d, "fck", 20, 90, 25)),
                     aco=d.get("aco", "CA-50"),
                     cobrimento_classe=d.get("cobrimento", "CA-III"),
                 )
             elif subtipo == "estaca":
                 res = calcular_estaca(
-                    Nk_kN=float(d.get("Nk", 100)),
-                    Nd_kN=float(d.get("Nd", 140)),
-                    n_spt_ponta=int(d.get("nspt_ponta", 15)),
-                    n_spt_fuste=float(d.get("nspt_fuste", 8)),
-                    h_estaca_m=float(d.get("h_estaca", 10)),
-                    d_estaca_m=float(d.get("d_estaca", 0.35)),
+                    Nk_kN=_num(d, "Nk", 10, 20000, 100),
+                    Nd_kN=_num(d, "Nd", 10, 30000, 140),
+                    n_spt_ponta=int(_num(d, "nspt_ponta", 1, 60, 15)),
+                    n_spt_fuste=_num(d, "nspt_fuste", 1, 60, 8),
+                    h_estaca_m=_num(d, "h_estaca", 1, 80, 10),
+                    d_estaca_m=_num(d, "d_estaca", 0.10, 2.0, 0.35),
                     tipo_estaca=d.get("tipo_estaca", "concreto_moldada_local"),
                 )
             else:
@@ -367,12 +383,12 @@ def create_app():
         pid = d.get("projeto_id")
         try:
             res = calcular_muro_arrimo(
-                H_m=float(d["H"]),
-                phi_graus=float(d.get("phi", 30)),
-                gamma_solo=float(d.get("gamma_solo", 18)),
-                q_sobrecarga=float(d.get("q_sob", 0)),
+                H_m=_num(d, "H", 0.5, 15),
+                phi_graus=_num(d, "phi", 10, 45, 30),
+                gamma_solo=_num(d, "gamma_solo", 10, 25, 18),
+                q_sobrecarga=_num(d, "q_sob", 0, 100, 0),
                 tipo=d.get("tipo", "balanco"),
-                fck=float(d.get("fck", 25)),
+                fck=int(_num(d, "fck", 20, 90, 25)),
                 aco=d.get("aco", "CA-50"),
                 cobrimento_classe=d.get("cobrimento", "CA-II"),
                 sigma_adm_solo=float(d.get("sigma_adm", 150)),
@@ -392,9 +408,9 @@ def create_app():
         pid = d.get("projeto_id")
         try:
             res = calcular_alvenaria_estrutural(
-                Nd_kN_m=float(d["Nd"]),
-                h_parede_m=float(d.get("h", 3.0)),
-                e_parede_m=float(d.get("e", 0.14)),
+                Nd_kN_m=_num(d, "Nd", 1, 2000),
+                h_parede_m=_num(d, "h", 1.0, 15.0, 3.0),
+                e_parede_m=_num(d, "e", 0.09, 0.40, 0.14),
                 tipo_bloco=d.get("bloco", "concreto_6MPa"),
                 vinculo=d.get("vinculo", "engastado_topo"),
                 controle=d.get("controle", "normal"),

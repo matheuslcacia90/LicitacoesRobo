@@ -27,6 +27,26 @@
     </div>
   </div>
 
+  <!-- Estatísticas rápidas -->
+  {% if projetos %}
+  {% set total_calc = projetos | map(attribute='calculos') | map('length') | sum %}
+  {% set total_arq  = projetos | map(attribute='arquivos')  | map('length') | sum %}
+  <div class="grid grid-cols-3 gap-3 mb-6">
+    <div class="card py-3 text-center">
+      <p class="text-xl sm:text-2xl font-bold text-blue-400">{{ projetos|length }}</p>
+      <p class="text-xs text-slate-500 mt-0.5">Projetos</p>
+    </div>
+    <div class="card py-3 text-center">
+      <p class="text-xl sm:text-2xl font-bold text-emerald-400">{{ total_calc }}</p>
+      <p class="text-xs text-slate-500 mt-0.5">Cálculos</p>
+    </div>
+    <div class="card py-3 text-center">
+      <p class="text-xl sm:text-2xl font-bold text-yellow-400">{{ total_arq }}</p>
+      <p class="text-xs text-slate-500 mt-0.5">Arquivos</p>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Projetos header -->
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-base sm:text-lg font-semibold text-slate-200">Meus Projetos</h2>
@@ -60,12 +80,35 @@
               <i class="fa-solid fa-user mr-1"></i>{{ p.responsavel }}
             </p>
           {% endif %}
-          <div class="flex items-center justify-between pt-3 mt-2 border-t border-surface-border">
+          <!-- Chips de tipos de elementos calculados -->
+          {% set tipos_map = {'laje':'Laje','viga':'Viga','pilar':'Pilar',
+                              'fundacao':'Fund.','muro':'Muro','alvenaria':'Alv.'} %}
+          {% set tipos_cores = {'laje':'bg-blue-900/50 text-blue-300',
+                                'viga':'bg-orange-900/50 text-orange-300',
+                                'pilar':'bg-purple-900/50 text-purple-300',
+                                'fundacao':'bg-yellow-900/50 text-yellow-300',
+                                'muro':'bg-green-900/50 text-green-300',
+                                'alvenaria':'bg-red-900/50 text-red-300'} %}
+          {% if p.calculos %}
+          {% set tipos_vistos = [] %}
+          <div class="flex flex-wrap gap-1 mt-2 mb-2">
+            {% for c in p.calculos %}
+              {% set base = c.elemento_tipo.split('_')[0] %}
+              {% if base not in tipos_vistos and tipos_vistos.append(base) %}{% endif %}
+            {% endfor %}
+            {% for t in tipos_vistos[:4] %}
+              <span class="text-xs px-1.5 py-0.5 rounded-full font-medium {{ tipos_cores.get(t,'bg-slate-800 text-slate-400') }}">
+                {{ tipos_map.get(t, t) }}
+              </span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="flex items-center justify-between pt-2 mt-1 border-t border-surface-border">
             <div class="flex gap-3 text-xs text-slate-500">
-              <span><i class="fa-solid fa-calculator mr-1"></i>{{ p.calculos|length }}</span>
-              <span><i class="fa-solid fa-file mr-1"></i>{{ p.arquivos|length }}</span>
+              <span title="Cálculos"><i class="fa-solid fa-calculator mr-1"></i>{{ p.calculos|length }}</span>
+              <span title="Arquivos"><i class="fa-solid fa-file mr-1"></i>{{ p.arquivos|length }}</span>
             </div>
-            <span class="text-xs text-blue-400 font-medium">Abrir →</span>
+            <span class="text-xs text-blue-400 font-medium group-hover:translate-x-0.5 transition-transform inline-block">Abrir →</span>
           </div>
         </a>
       {% endfor %}

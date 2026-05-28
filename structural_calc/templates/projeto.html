@@ -160,12 +160,13 @@
               </template>
             </div>
 
-            <!-- Link para ver cálculo completo -->
-            <a x-show="el.calculo_id"
-               href="{{ url_for('calcular_page', pid=projeto.id) }}"
-               class="mt-2 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-              <i class="fa-solid fa-arrow-right text-xs"></i>Ver no calculador
-            </a>
+            <!-- Botão ver detalhes completos -->
+            <button x-show="el.calculo_id"
+                    @click="verCalculo(el.calculo_id)"
+                    class="mt-2 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1
+                           w-full justify-center py-1.5 rounded-lg hover:bg-blue-400/10 transition-colors">
+              <i class="fa-solid fa-magnifying-glass text-xs mr-1"></i>Ver detalhes completos
+            </button>
           </div>
         </template>
       </div>
@@ -347,7 +348,12 @@
                 </div>
                 {% endif %}
 
-                <div class="flex justify-end">
+                <div class="flex justify-between items-center pt-2">
+                  <button @click="verCalculo({{ c.id }})"
+                          class="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300
+                                 px-3 py-2 rounded-lg hover:bg-blue-400/10 transition-colors min-h-[36px]">
+                    <i class="fa-solid fa-magnifying-glass"></i> Ver detalhes
+                  </button>
                   <form method="POST" action="{{ url_for('excluir_calculo', cid=c.id) }}"
                         onsubmit="return confirm('Excluir este cálculo?')">
                     <button type="submit"
@@ -419,6 +425,189 @@
                  class="text-red-400 text-xs" x-text="`Erro: ${arquivoSel.dados_extra.erro}`"></div>
           </div>
         </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Modal: Detalhes do Cálculo ══ -->
+  <div x-show="modalCalculo" x-cloak
+       class="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div class="bg-surface-card rounded-t-2xl sm:rounded-2xl border border-surface-border
+                w-full sm:max-w-2xl max-h-[92vh] flex flex-col">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-surface-border sticky top-0
+                  bg-surface-card rounded-t-2xl sm:rounded-t-2xl shrink-0 z-10">
+        <div class="flex items-center gap-3 min-w-0">
+          <template x-if="calculoDetalhe">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                 :class="tipoIconBg(calculoDetalhe.tipo)">
+              <i :class="tipoIcon(calculoDetalhe.tipo)" class="text-base"></i>
+            </div>
+          </template>
+          <div class="min-w-0">
+            <h3 class="font-semibold text-sm text-slate-100 truncate"
+                x-text="calculoDetalhe?.descricao || 'Carregando…'"></h3>
+            <p class="text-xs text-slate-500"
+               x-text="calculoDetalhe?.criado_em || ''"></p>
+          </div>
+        </div>
+        <button @click="modalCalculo=false"
+                class="p-2 text-slate-400 hover:text-white rounded-lg min-w-[40px] min-h-[40px]
+                       flex items-center justify-center shrink-0 transition-colors">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div x-show="carregandoDetalhe" class="flex-1 flex items-center justify-center p-10">
+        <div class="w-9 h-9 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+
+      <!-- Conteúdo -->
+      <div x-show="!carregandoDetalhe && calculoDetalhe" class="flex-1 overflow-auto p-4 space-y-5">
+
+        <!-- Status -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5"
+                :class="statusClass(calculoDetalhe?.resultado)">
+            <i :class="statusIcon(calculoDetalhe?.resultado)"></i>
+            <span x-text="statusText(calculoDetalhe?.resultado)"></span>
+          </span>
+          <span class="text-xs text-slate-500 px-2 py-1 bg-surface rounded-full"
+                x-text="(calculoDetalhe?.tipo || '').replace(/_/g,' ')"></span>
+        </div>
+
+        <!-- Abas: Resultados | Parâmetros -->
+        <div x-data="{ abaDetalhe: 'res' }">
+          <div class="flex gap-1 bg-surface p-1 rounded-xl mb-4">
+            <button @click="abaDetalhe='res'"
+                    :class="abaDetalhe==='res'
+                      ? 'bg-surface-card text-slate-100 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'"
+                    class="flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all">
+              <i class="fa-solid fa-chart-bar mr-1.5"></i>Resultados
+            </button>
+            <button @click="abaDetalhe='par'"
+                    :class="abaDetalhe==='par'
+                      ? 'bg-surface-card text-slate-100 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'"
+                    class="flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all">
+              <i class="fa-solid fa-sliders mr-1.5"></i>Parâmetros
+            </button>
+          </div>
+
+          <!-- Aba: Resultados -->
+          <div x-show="abaDetalhe==='res'" class="space-y-4">
+
+            <!-- Grid de valores numéricos -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <template x-for="[k, v] in Object.entries(calculoDetalhe?.resultado || {})" :key="k">
+                <div x-show="v !== null && v !== undefined
+                             && typeof v !== 'object'
+                             && typeof v !== 'boolean'
+                             && k !== 'calculo_id'"
+                     class="bg-surface rounded-xl p-2.5">
+                  <p class="text-xs text-slate-500 truncate capitalize"
+                     x-text="k.replace(/_/g,' ')"></p>
+                  <p class="text-sm font-bold text-slate-100 mt-0.5"
+                     x-text="typeof v==='number' ? v.toFixed(3) : v"></p>
+                </div>
+              </template>
+            </div>
+
+            <!-- Armadura principal (laje) -->
+            <template x-if="calculoDetalhe?.resultado?.bitola_principal">
+              <div class="bg-blue-950/40 border border-blue-800/30 rounded-xl p-3 space-y-1.5">
+                <p class="text-xs font-semibold text-blue-300 mb-2">
+                  <i class="fa-solid fa-grip-lines mr-1.5"></i>Armadura Principal
+                </p>
+                <p class="text-xs text-blue-200">
+                  Ø<span x-text="calculoDetalhe.resultado.bitola_principal.diam"></span>mm
+                  c/<span x-text="calculoDetalhe.resultado.bitola_principal.espacamento_cm"></span>cm
+                  → <strong x-text="calculoDetalhe.resultado.bitola_principal.As_efetivo_cm2m"></strong> cm²/m
+                </p>
+              </div>
+            </template>
+
+            <!-- Armadura secundária (laje) -->
+            <template x-if="calculoDetalhe?.resultado?.bitola_secundaria">
+              <div class="bg-indigo-950/40 border border-indigo-800/30 rounded-xl p-3">
+                <p class="text-xs font-semibold text-indigo-300 mb-1.5">
+                  <i class="fa-solid fa-grip-lines-vertical mr-1.5"></i>Armadura Secundária
+                </p>
+                <p class="text-xs text-indigo-200">
+                  Ø<span x-text="calculoDetalhe.resultado.bitola_secundaria.diam"></span>mm
+                  c/<span x-text="calculoDetalhe.resultado.bitola_secundaria.espacamento_cm"></span>cm
+                  → <strong x-text="calculoDetalhe.resultado.bitola_secundaria.As_efetivo_cm2m"></strong> cm²/m
+                </p>
+              </div>
+            </template>
+
+            <!-- Armadura longitudinal (viga) -->
+            <template x-if="calculoDetalhe?.resultado?.bitola_longitudinal">
+              <div class="bg-blue-950/40 border border-blue-800/30 rounded-xl p-3 space-y-1.5">
+                <p class="text-xs font-semibold text-blue-300 mb-2">
+                  <i class="fa-solid fa-minus mr-1.5"></i>Armadura Longitudinal
+                </p>
+                <p class="text-xs text-blue-200"
+                   x-text="formatBitola(calculoDetalhe.resultado.bitola_longitudinal)"></p>
+                <template x-if="calculoDetalhe?.resultado?.estribos">
+                  <p class="text-xs text-blue-200">
+                    Estribos: Ø<span x-text="calculoDetalhe.resultado.estribos.phi_estribo_mm"></span>mm
+                    <span x-text="calculoDetalhe.resultado.estribos.n_ramos"></span>R
+                    c/<span x-text="calculoDetalhe.resultado.estribos.s_adot_cm"></span>cm
+                  </p>
+                </template>
+              </div>
+            </template>
+
+            <!-- Avisos -->
+            <template x-if="getAvisos(calculoDetalhe?.resultado).length > 0">
+              <div class="bg-yellow-900/20 border border-yellow-700/30 rounded-xl p-3">
+                <p class="text-xs font-semibold text-yellow-400 mb-2">
+                  <i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Avisos
+                </p>
+                <div class="space-y-1">
+                  <template x-for="av in getAvisos(calculoDetalhe?.resultado)" :key="av">
+                    <p class="text-xs text-yellow-300 flex gap-1.5">
+                      <i class="fa-solid fa-circle-dot shrink-0 mt-0.5 text-yellow-500"></i>
+                      <span x-text="av"></span>
+                    </p>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+          </div><!-- /aba resultados -->
+
+          <!-- Aba: Parâmetros -->
+          <div x-show="abaDetalhe==='par'">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <template x-for="[k, v] in Object.entries(calculoDetalhe?.parametros || {})" :key="k">
+                <div x-show="v !== null && v !== undefined
+                             && typeof v !== 'object'
+                             && k !== 'projeto_id'"
+                     class="bg-surface rounded-xl p-2.5">
+                  <p class="text-xs text-slate-500 truncate capitalize"
+                     x-text="k.replace(/_/g,' ')"></p>
+                  <p class="text-sm font-bold text-slate-200 mt-0.5" x-text="v"></p>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div><!-- /abas -->
+
+      </div><!-- /conteúdo -->
+
+      <!-- Footer -->
+      <div class="shrink-0 p-4 border-t border-surface-border flex gap-2">
+        <a href="{{ url_for('calcular_page', pid=projeto.id) }}"
+           class="btn-primary flex-1 text-center text-sm">
+          <i class="fa-solid fa-calculator mr-1.5"></i>Recalcular
+        </a>
+        <button @click="modalCalculo=false"
+                class="btn-secondary px-5 text-sm">Fechar</button>
       </div>
     </div>
   </div>
@@ -506,6 +695,60 @@ function projetoPage(pid) {
     verDadosArquivo(arq) {
       this.arquivoSel = arq;
       this.modalArquivo = true;
+    },
+
+    // ── Modal de detalhes do cálculo ────────────────────────────────
+    modalCalculo: false,
+    calculoDetalhe: null,
+    carregandoDetalhe: false,
+
+    async verCalculo(cid) {
+      if (!cid) return;
+      this.calculoDetalhe = null;
+      this.carregandoDetalhe = true;
+      this.modalCalculo = true;
+      try {
+        const r = await fetch(`/api/calculo/${cid}`);
+        if (!r.ok) throw new Error('Não encontrado');
+        this.calculoDetalhe = await r.json();
+      } catch(e) {
+        showToast('Erro ao carregar detalhes', 'danger');
+        this.modalCalculo = false;
+      } finally {
+        this.carregandoDetalhe = false;
+      }
+    },
+
+    statusClass(r) {
+      if (!r) return 'bg-slate-800 text-slate-300';
+      if (r.aprovado === false || r.capacidade_ok === false ||
+          r.tombamento_ok === false || r.deslizamento_ok === false)
+        return 'bg-red-900/50 text-red-300 border border-red-700/30';
+      return 'bg-emerald-900/50 text-emerald-300 border border-emerald-700/30';
+    },
+    statusText(r) {
+      if (!r) return 'Sem dados';
+      if (r.aprovado === false || r.capacidade_ok === false ||
+          r.tombamento_ok === false || r.deslizamento_ok === false) return 'Verificar';
+      return 'Aprovado – conforme NBR';
+    },
+    statusIcon(r) {
+      if (!r) return 'fa-solid fa-question';
+      if (r.aprovado === false || r.capacidade_ok === false ||
+          r.tombamento_ok === false || r.deslizamento_ok === false)
+        return 'fa-solid fa-triangle-exclamation';
+      return 'fa-solid fa-circle-check';
+    },
+    formatBitola(b) {
+      if (!b) return '—';
+      return `Ø${b.diam}mm × ${b.n_barras || '?'} barras → ${b.As_efetivo_cm2 || b.As_efetivo_cm2m || '?'} cm²`;
+    },
+    getAvisos(r) {
+      if (!r) return [];
+      return Object.entries(r)
+        .filter(([k, v]) => v && typeof v === 'string' &&
+          (k.startsWith('aviso') || k.startsWith('obs') || k === 'recomendacao' || k === 'classe_esbeltez'))
+        .map(([, v]) => v);
     },
 
     // ── Análise automática ──────────────────────────────────────────
