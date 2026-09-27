@@ -1,0 +1,75 @@
+name: Família Maçônica
+
+on:
+  pull_request:
+    paths:
+      - 'familia-maconica/**'
+      - '.github/workflows/familia-maconica.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'familia-maconica/**'
+      - '.github/workflows/familia-maconica.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: familia-maconica-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: familia-maconica
+
+jobs:
+  banco:
+    name: Regras do banco (PostgreSQL 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        # Mesma versão principal do Supabase.
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar migrações e rodar os testes de regras
+        run: ./scripts/testar-banco.sh
+
+  app:
+    name: Tipos, testes unitários e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Valores fictícios: o build só precisa que existam.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: familia-maconica/package-lock.json
+      - run: npm ci
+      - name: Verificação de tipos
+        run: npm run typecheck
+      - name: Testes unitários
+        run: npm test
+      - name: Build de produção
+        run: npm run build
