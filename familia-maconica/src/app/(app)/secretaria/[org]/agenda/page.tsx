@@ -3,11 +3,14 @@ import { Formulario } from '@/componentes/Formulario'
 import { clienteServidor } from '@/lib/supabase/servidor'
 import { NOME_TIPO_EVENTO, dataCurta, hora } from '@/lib/regras'
 import type { Membro } from '@/lib/tipos'
-import { criarEvento, responderParticipacao } from '../acoes'
+import { configurarLembretes, criarEvento, responderParticipacao } from '../acoes'
 
 export const metadata = { title: 'Agenda da organização' }
 
-type Org = { id: string; nome: string; nucleo_id: string; local_padrao_id: string | null }
+type Org = { id: string; nome: string; nucleo_id: string; local_padrao_id: string | null; lembretes_horas: number[] }
+
+const OPCOES_LEMBRETE = [1, 2, 3, 6, 12, 24, 48, 72, 168]
+const rotuloHoras = (h: number) => (h % 24 === 0 ? `${h / 24} dia${h > 24 ? 's' : ''} antes` : `${h} hora${h > 1 ? 's' : ''} antes`)
 type Local = { id: string; nome: string }
 type Ocupacao = { evento_id: string; inicio: string; fim: string; organizacao: string; titulo: string | null }
 type Convite = { evento: { id: string; titulo: string; inicio: string; fim: string; descricao: string | null; cancelado_em: string | null; organizacao: { nome: string } } }
@@ -19,7 +22,7 @@ export default async function AgendaSecretaria({ params }: { params: Promise<{ o
   const agora = new Date()
   const em60 = new Date(agora.getTime() + 60 * 86400_000).toISOString()
 
-  const { data: orgData } = await sb.from('organizacao').select('id, nome, nucleo_id, local_padrao_id').eq('id', org).single()
+  const { data: orgData } = await sb.from('organizacao').select('id, nome, nucleo_id, local_padrao_id, lembretes_horas').eq('id', org).single()
   const esta = orgData as Org
   const [{ data: outras }, { data: locais }, { data: membros }, { data: convites }, { data: criados }] = await Promise.all([
     sb.from('organizacao').select('id, nome').eq('nucleo_id', esta.nucleo_id).neq('id', org).order('nome'),
@@ -64,6 +67,25 @@ export default async function AgendaSecretaria({ params }: { params: Promise<{ o
           ))}
         </section>
       )}
+
+      <details className="cartao">
+        <summary>Lembretes automáticos: {esta.lembretes_horas.length ? esta.lembretes_horas.map(rotuloHoras).join(', ') : 'desligados'}</summary>
+        <Formulario acao={configurarLembretes.bind(null, org)} rotulo="Salvar lembretes">
+          <p className="suave" style={{ margin: 0 }}>
+            Valem para todos os eventos desta organização, inclusive os já marcados. Até 3 lembretes.
+          </p>
+          <div className="grade-2">
+            {[0, 1, 2].map((i) => (
+              <label key={i}>Lembrete {i + 1}
+                <select name="horas" defaultValue={String(esta.lembretes_horas[i] ?? '')}>
+                  <option value="">Nenhum</option>
+                  {OPCOES_LEMBRETE.map((h) => <option key={h} value={h}>{rotuloHoras(h)}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+        </Formulario>
+      </details>
 
       <details className="cartao" open={pendentes.length === 0}>
         <summary>Novo evento</summary>

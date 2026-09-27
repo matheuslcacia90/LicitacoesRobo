@@ -19,3 +19,11 @@ select cron.schedule(
   );
   $$
 );
+
+-- Limpeza diária de dados antigos (migração 20260927000007), às 03h17 de Brasília.
+-- Para ligar a anonimização de contas inativas e a limpeza da auditoria depois do
+-- parecer jurídico, passe os prazos em meses: limpar_dados_antigos(90, <meses>, <meses>).
+select cron.unschedule('limpar-dados-antigos')
+ where exists (select 1 from cron.job where jobname = 'limpar-dados-antigos');
+
+select cron.schedule('limpar-dados-antigos', '17 6 * * *', $$ select public.limpar_dados_antigos() $$);

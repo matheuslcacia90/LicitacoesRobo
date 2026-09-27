@@ -111,3 +111,20 @@ export interface EstadoAcao {
   erro?: string
   ok?: string
 }
+
+export type MetricasOrganizacao = {
+  organizacao_id: string
+  organizacao: string
+  nucleo: string
+  tipo: TipoOrganizacao
+  reunioes_30d: number
+  eventos_proximos_30d: number
+  gestao: string | null
+  gestao_inicio: string | null
+  cargos_total: number
+  cargos_preenchidos: number
+  menores_ativos: number
+  menores_aprovados: number
+  adultos_ativos: number
+  adultos_semana: number
+}

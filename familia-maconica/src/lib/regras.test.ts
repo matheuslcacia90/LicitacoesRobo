@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  deslocarMes, faixaEtaria, intervaloDoMes, isoDeBrasilia, mensagemErro, podeSilenciar,
+  avaliarMetricas, deslocarMes, faixaEtaria, intervaloDoMes, isoDeBrasilia, mensagemErro, podeSilenciar,
   respostasPossiveis, validarSenha,
 } from './regras'
 
@@ -54,5 +54,35 @@ describe('mensagens de erro', () => {
   it('traduz erros técnicos', () => {
     expect(mensagemErro({ message: 'permission denied for table pessoa' })).toMatch(/permissão/)
     expect(mensagemErro({ message: 'Informe o nome.' })).toBe('Informe o nome.')
+  })
+})
+
+describe('avaliarMetricas (metas da seção 10)', () => {
+  const base = {
+    organizacao_id: 'x', organizacao: 'Capítulo', nucleo: 'N', tipo: 'capitulo_demolay' as const,
+    reunioes_30d: 4, eventos_proximos_30d: 3, gestao: 'Gestão 2026/2', gestao_inicio: '2026-09-01',
+    cargos_total: 10, cargos_preenchidos: 10, menores_ativos: 10, menores_aprovados: 7,
+    adultos_ativos: 4, adultos_semana: 2,
+  }
+  const hoje = new Date('2026-09-26T12:00:00-03:00')
+
+  it('dentro das metas', () => {
+    const r = avaliarMetricas(base, hoje)
+    expect([r.agenda.status, r.cargos.status, r.menores.status, r.uso.status]).toEqual(['ok', 'ok', 'ok', 'ok'])
+    expect(r.menores.valor).toBe('70% (7 de 10)')
+  })
+
+  it('cargos incompletos: alerta nos primeiros 15 dias, erro depois', () => {
+    const incompleto = { ...base, cargos_preenchidos: 8 }
+    expect(avaliarMetricas({ ...incompleto, gestao_inicio: '2026-09-20' }, hoje).cargos.status).toBe('alerta')
+    expect(avaliarMetricas(incompleto, hoje).cargos.status).toBe('erro')
+    expect(avaliarMetricas({ ...base, gestao: null, gestao_inicio: null }, hoje).cargos.valor).toBe('sem gestão vigente')
+  })
+
+  it('abaixo da meta ou sem dados', () => {
+    const r = avaliarMetricas({ ...base, eventos_proximos_30d: 0, menores_aprovados: 6, adultos_ativos: 0 }, hoje)
+    expect(r.agenda.status).toBe('erro')
+    expect(r.menores.status).toBe('erro')
+    expect(r.uso.status).toBe('sem-dados')
   })
 })

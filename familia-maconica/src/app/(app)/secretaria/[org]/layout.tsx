@@ -19,6 +19,7 @@ export default async function LayoutSecretaria({ children, params }: {
         { href: base, rotulo: 'Membros', exato: true },
         { href: `${base}/cargos`, rotulo: 'Cargos e gestões' },
         { href: `${base}/agenda`, rotulo: 'Agenda' },
+        { href: '/metricas', rotulo: 'Métricas' },
       ]} />
       {children}
     </>

@@ -165,6 +165,25 @@ select teste.ok((select count(*) = 0 from notificacao where evento_id = (:'serie
                 'série não repete aviso de criação');
 select teste.ok((select count(*) > 0 from notificacao where evento_id = (:'serie'::uuid[])[4] and motivo like 'lembrete%'),
                 'lembretes agendados para cada data da série');
+
+-- Lembretes configuráveis por organização (migração 0008)
+set role authenticated;
+select teste.como('sec.loja@teste.com');
+select teste.erro(format($$select configurar_lembretes(%L, '{48}')$$, :'cap'), 'Apenas a Secretaria',
+                  'Secretaria não configura lembretes de outra organização');
+select teste.como('sec.cap@teste.com');
+select teste.erro(format($$select configurar_lembretes(%L, '{200}')$$, :'cap'), '1 a 168', 'lembrete acima de 7 dias recusado');
+select teste.erro(format($$select configurar_lembretes(%L, '{48,24,2,1}')$$, :'cap'), 'No máximo 3', 'mais de 3 lembretes recusado');
+select teste.ok(configurar_lembretes(:'cap', '{1,48,48}') = '{48,1}', 'lembretes normalizados: sem repetição, do maior para o menor');
+reset role;
+select teste.ok(exists (select 1 from notificacao where evento_id = (:'serie'::uuid[])[4] and motivo = 'lembrete_48h'
+                          and descartada_em is null)
+                and not exists (select 1 from notificacao where evento_id = (:'serie'::uuid[])[4] and motivo = 'lembrete_24h'
+                                  and descartada_em is null),
+                'eventos futuros reagendados com os novos lembretes');
+set role authenticated;
+select configurar_lembretes(:'cap', '{24,2}');
+reset role;
 select teste.ok(app.ajustar_silencio('2026-10-01 23:30-03', p.id) = '2026-10-02 07:00-03'::timestamptz
                 and app.ajustar_silencio('2026-10-01 05:00-03', p.id) = '2026-10-01 07:00-03'::timestamptz
                 and app.ajustar_silencio('2026-10-01 15:00-03', p.id) = '2026-10-01 15:00-03'::timestamptz,
@@ -352,6 +371,89 @@ reset role;
 select teste.ok((select nome = 'Titular anonimizado' and email is null and data_nascimento is null
                    from pessoa where id = :'joao'), 'cadastro anonimizado');
 select teste.ok((select count(*) = 1 from ocupacao_cargo where pessoa_id = :'joao'), 'histórico mantido após anonimização');
+
+-- ---------------------------------------------------------------------
+-- Métricas do piloto (migração 0009)
+-- ---------------------------------------------------------------------
+set role authenticated;
+select teste.como('pedro@teste.com');
+select registrar_acesso();
+select registrar_acesso();
+select teste.ok((select count(*) = 0 from metricas_piloto()), 'membro comum não vê métricas');
+select teste.erro('select * from acesso_diario', 'permission denied', 'registro de acessos fechado para leitura direta');
+select teste.como('sec.cap@teste.com');
+select teste.ok((select count(*) = 1 and bool_and(organizacao_id = :'cap') from metricas_piloto()),
+                'Secretaria vê só as métricas da própria organização');
+select teste.ok((select reunioes_30d >= 4 and gestao is not null and cargos_preenchidos >= 1
+                        and cargos_preenchidos <= cargos_total
+                        and menores_aprovados <= menores_ativos
+                        and adultos_semana >= 1 and adultos_semana <= adultos_ativos
+                   from metricas_piloto()),
+                'métricas contam reuniões, cargos da gestão, menores aprovados e uso semanal');
+select teste.como('admin@teste.com');
+select teste.ok((select count(*) = 3 from metricas_piloto()), 'administrador vê as métricas de todas as organizações');
+reset role;
+select teste.ok((select count(*) = 1 from acesso_diario a join pessoa p on p.id = a.pessoa_id
+                  where p.email = 'pedro@teste.com'), 'acesso registrado uma vez por dia');
+set role authenticated;
+select teste.como('pedro@teste.com');
+select teste.ok(jsonb_array_length(exportar_dados() -> 'dias_de_acesso') = 1, 'exportação inclui os dias de acesso');
+reset role;
+
+-- ---------------------------------------------------------------------
+-- Limpeza periódica (migração 0007)
+-- ---------------------------------------------------------------------
+-- Cenário, criado direto no banco: um ex-membro que saiu há 2 anos, outro há
+-- 1 mês, avisos e tentativas de login antigas e um registro de auditoria velho.
+insert into pessoa (nome, email) values ('Ex Antigo', 'ex.antigo@teste.com'), ('Ex Recente', 'ex.recente@teste.com');
+select teste.aceitar_convite(e) from unnest(array['ex.antigo@teste.com', 'ex.recente@teste.com']) e;
+select id as ex_antigo from pessoa where email = 'ex.antigo@teste.com' \gset
+select id as ex_recente from pessoa where email = 'ex.recente@teste.com' \gset
+insert into vinculo (pessoa_id, organizacao_id, ativo, inicio, fim) values
+  (:'ex_antigo', :'loja', false, current_date - 1500, current_date - 730),
+  (:'ex_recente', :'loja', false, current_date - 400, current_date - 30);
+insert into notificacao (pessoa_id, motivo, titulo, corpo, enviada_em) values
+  (:'pedro', 'teste', 'aviso velho', 'x', now() - interval '100 days'),
+  (:'pedro', 'teste', 'aviso novo', 'x', now() - interval '10 days');
+insert into tentativa_login (email, falhas, atualizado_em) values ('velho@teste.com', 2, now() - interval '2 days');
+insert into log_auditoria (acao, tabela, em) values ('teste', 'teste', now() - interval '3 years');
+insert into acesso_diario (pessoa_id, dia) values (:'pedro', current_date - 100);
+
+set role authenticated;
+select teste.como('pedro@teste.com');
+select teste.erro('select limpar_dados_antigos()', 'permission denied', 'limpeza fechada para usuários');
+reset role;
+
+set role service_role;
+select limpar_dados_antigos() as limpeza \gset
+reset role;
+select teste.ok(not exists (select 1 from notificacao where titulo = 'aviso velho')
+                and exists (select 1 from notificacao where titulo = 'aviso novo'),
+                'limpeza apaga avisos enviados há mais de 90 dias e mantém os recentes');
+select teste.ok(not exists (select 1 from tentativa_login where email = 'velho@teste.com')
+                and exists (select 1 from tentativa_login where email = 'alguem@teste.com'),
+                'limpeza apaga tentativas de login antigas e mantém bloqueios em vigor');
+select teste.ok(not exists (select 1 from acesso_diario where dia < current_date - 90)
+                and exists (select 1 from acesso_diario where dia >= current_date - 1),
+                'limpeza apaga registros de acesso com mais de 90 dias');
+select teste.ok((select anonimizada_em is null from pessoa where id = :'ex_antigo')
+                and exists (select 1 from log_auditoria where acao = 'teste')
+                and (:'limpeza'::jsonb ->> 'contas_anonimizadas')::int = 0,
+                'sem prazo definido, a limpeza não anonimiza contas nem apaga auditoria');
+
+set role service_role;
+select limpar_dados_antigos(90, 12, 24) as limpeza \gset
+reset role;
+select teste.ok((select anonimizada_em is not null and email is null from pessoa where id = :'ex_antigo')
+                and not exists (select 1 from auth.users where email = 'ex.antigo@teste.com'),
+                'com prazo de 12 meses, conta sem vínculo há 2 anos é anonimizada e o login removido');
+select teste.ok((select anonimizada_em is null from pessoa where id = :'ex_recente')
+                and (select anonimizada_em is null from pessoa where id = :'pedro')
+                and (select anonimizada_em is null from pessoa where email = 'pai.joao@teste.com'),
+                'contas recentes, ativas ou de responsáveis continuam intactas');
+select teste.ok(not exists (select 1 from log_auditoria where acao = 'teste')
+                and exists (select 1 from log_auditoria where em > now() - interval '1 day'),
+                'com prazo de 24 meses, só a auditoria mais antiga é apagada');
 
 -- ---------------------------------------------------------------------
 -- Catálogo de cargos do Castelo de Escudeiros (migração 0005)

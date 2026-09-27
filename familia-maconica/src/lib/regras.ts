@@ -1,6 +1,6 @@
 // Regras de apresentação compartilhadas. As regras que protegem dados
 // ficam no banco (supabase/migrations); estas só orientam a interface.
-import type { Faixa, TipoEvento, TipoOrganizacao, TipoResposta } from './tipos'
+import type { Faixa, MetricasOrganizacao, TipoEvento, TipoOrganizacao, TipoResposta } from './tipos'
 
 export const FUSO = 'America/Sao_Paulo'
 
@@ -130,4 +130,49 @@ export function mensagemErro(e: unknown): string {
   if (/permission denied|42501/i.test(msg)) return 'Você não tem permissão para esta ação.'
   if (/evento_sem_conflito_local/.test(msg)) return 'Conflito de uso do local neste horário.'
   return msg.replace(/^ERROR:\s*/, '')
+}
+
+// Metas da seção 10 do dossiê para o painel do piloto.
+export type StatusMeta = 'ok' | 'alerta' | 'erro' | 'sem-dados'
+export type Meta = { status: StatusMeta; valor: string; detalhe: string }
+
+const pct = (parte: number, todo: number) => Math.round((parte / todo) * 100)
+
+export function avaliarMetricas(m: MetricasOrganizacao, hoje: Date = new Date()) {
+  const agenda: Meta = {
+    status: m.eventos_proximos_30d > 0 ? 'ok' : 'erro',
+    valor: `${m.eventos_proximos_30d} nos próximos 30 dias`,
+    detalhe: `${m.reunioes_30d} reuniões lançadas nos últimos 30 dias`,
+  }
+
+  let cargos: Meta
+  if (!m.gestao || !m.gestao_inicio) {
+    cargos = { status: 'erro', valor: 'sem gestão vigente', detalhe: 'Meta: gestão cadastrada e cargos preenchidos em até 15 dias' }
+  } else {
+    const p = m.cargos_total ? pct(m.cargos_preenchidos, m.cargos_total) : 100
+    const dias = Math.floor((hoje.getTime() - new Date(`${m.gestao_inicio}T00:00:00-03:00`).getTime()) / 86400_000)
+    cargos = {
+      status: p >= 100 ? 'ok' : dias <= 15 ? 'alerta' : 'erro',
+      valor: `${p}% (${m.cargos_preenchidos} de ${m.cargos_total})`,
+      detalhe: `${m.gestao}, iniciada há ${Math.max(dias, 0)} dia${dias === 1 ? '' : 's'}. Meta: 100% em até 15 dias`,
+    }
+  }
+
+  const menores: Meta = m.menores_ativos === 0
+    ? { status: 'sem-dados', valor: 'sem menores', detalhe: 'Meta: 70% com conta aprovada pelo responsável' }
+    : {
+        status: pct(m.menores_aprovados, m.menores_ativos) >= 70 ? 'ok' : 'erro',
+        valor: `${pct(m.menores_aprovados, m.menores_ativos)}% (${m.menores_aprovados} de ${m.menores_ativos})`,
+        detalhe: 'Meta: 70% com conta aprovada pelo responsável',
+      }
+
+  const uso: Meta = m.adultos_ativos === 0
+    ? { status: 'sem-dados', valor: 'sem adultos', detalhe: 'Meta: 50% dos adultos usando por semana' }
+    : {
+        status: pct(m.adultos_semana, m.adultos_ativos) >= 50 ? 'ok' : 'erro',
+        valor: `${pct(m.adultos_semana, m.adultos_ativos)}% (${m.adultos_semana} de ${m.adultos_ativos})`,
+        detalhe: 'Meta: 50% dos adultos usando por semana',
+      }
+
+  return { agenda, cargos, menores, uso }
 }
