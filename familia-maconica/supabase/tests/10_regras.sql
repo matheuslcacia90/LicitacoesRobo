@@ -318,6 +318,23 @@ select teste.ok((select nome = 'Titular anonimizado' and email is null and data_
 select teste.ok((select count(*) = 1 from ocupacao_cargo where pessoa_id = :'joao'), 'histórico mantido após anonimização');
 
 -- ---------------------------------------------------------------------
+-- Catálogo de cargos do Castelo de Escudeiros (migração 0005)
+-- ---------------------------------------------------------------------
+select teste.ok((select count(*) = 0 from cargo
+                  where tipo_organizacao = 'castelo_escudeiros'
+                    and nome in ('Escudeiro-Líder', 'Vice-Líder', 'Responsável adulto', 'Conselheiro adulto')),
+                'Escudeiros: nomes provisórios substituídos');
+select teste.ok((select array_agg(nome order by ordem) from cargo
+                  where tipo_organizacao = 'castelo_escudeiros' and organizacao_id is null)
+                = array['Mestre Escudeiro','Primeiro Escudeiro','Segundo Escudeiro','Capelão Escudeiro',
+                        'Mestre de Cerimônias Escudeiro','Escrivão Escudeiro','Tesoureiro Escudeiro',
+                        'Sentinela','Organista','Preceptor','Nobre Cavaleiro','Consultor'],
+                'Escudeiros: 12 cargos na ordem do quadro');
+select teste.ok((select bool_and(para_adulto) from cargo
+                  where tipo_organizacao = 'castelo_escudeiros' and nome in ('Nobre Cavaleiro', 'Consultor')),
+                'Escudeiros: Nobre Cavaleiro e Consultor exclusivos de adultos');
+
+-- ---------------------------------------------------------------------
 -- Auditoria
 -- ---------------------------------------------------------------------
 select teste.ok((select count(*) > 0 from log_auditoria where tabela = 'vinculo' and acao = 'update' and autor_id is not null),
