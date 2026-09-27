@@ -94,7 +94,8 @@ e `supabase/seed.sql` (cria `admin@exemplo.org.br` como administrador).
 - **Catálogo de cargos**: validar com os regulamentos. Os do **Castelo de Escudeiros** seguem a Ordem dos Escudeiros
   (migração `20260927000005_cargos_escudeiros.sql`), levantados por busca; confirmar com o regulamento vigente.
 - **Sigilo**: validar com a Potência e os Grandes Conselhos o que pode constar em título/descrição de sessões. As
-  notificações push passam por servidores do Google/Apple: não coloque conteúdo reservado nos títulos.
+  notificações push passam por servidores do Google/Apple: não coloque conteúdo reservado nos títulos. O formulário de
+  novo evento mostra esse aviso à Secretaria.
 - **Validade do convite**: o dossiê pede 72 h, mas o Supabase limita links de e-mail a **24 h**. O app oferece
   "Reenviar convite" na lista de membros.
 - **Login por CPF**: não implementado (só e-mail). Guardar CPF aumenta a exposição de dados. Avaliar se é necessário.
