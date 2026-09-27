@@ -22,6 +22,7 @@ export default async function ContaInativa() {
           Secretaria da sua organização.
         </p>
       )}
+      <p><a href="/meus-dados" download>Baixar meus dados</a></p>
       <form action="/sair" method="post"><button className="secundario">Sair</button></form>
     </main>
   )

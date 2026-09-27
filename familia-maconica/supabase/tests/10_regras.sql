@@ -303,6 +303,42 @@ select teste.como('joao@teste.com');
 select teste.erro($$select registrar_falha_login('x')$$, 'permission denied', 'funções de serviço fechadas para usuários');
 
 -- ---------------------------------------------------------------------
+-- Acesso e portabilidade: baixar os próprios dados (migração 0006)
+-- ---------------------------------------------------------------------
+select teste.como('joao@teste.com');
+select exportar_dados() as dados_joao \gset
+select teste.ok((:'dados_joao'::jsonb -> 'cadastro' ->> 'email') = 'joao@teste.com'
+                and (:'dados_joao'::jsonb ->> 'pedido_por') = 'titular',
+                'titular baixa os próprios dados, mesmo com a conta inativa');
+select teste.ok(jsonb_array_length(:'dados_joao'::jsonb -> 'responsaveis') >= 1
+                and jsonb_array_length(:'dados_joao'::jsonb -> 'consentimentos') >= 1
+                and jsonb_array_length(:'dados_joao'::jsonb -> 'vinculos') >= 1
+                and jsonb_array_length(:'dados_joao'::jsonb -> 'cargos') >= 1,
+                'exportação traz responsáveis, consentimentos, vínculos e cargos');
+reset role;
+select teste.ok((select position(p.auth_user_id::text in :'dados_joao') = 0 from pessoa p where p.id = :'joao')
+                and not exists (select 1 from push_inscricao k
+                                 where position(k.p256dh in :'dados_joao') > 0 or position(k.auth in :'dados_joao') > 0),
+                'exportação não traz id de login nem chaves de push');
+set role authenticated;
+select teste.como('joao@teste.com');
+select teste.erro(format('select exportar_dados(%L)', :'pedro'), 'Apenas o titular', 'membro não baixa dados de outra pessoa');
+select teste.como('sec.bethel@teste.com');
+select teste.erro(format('select exportar_dados(%L)', :'r_ana'::jsonb ->> 'pessoa_id'), 'Apenas o titular',
+                  'Secretaria não baixa dados de membro');
+select teste.como('mae.ana@teste.com');
+select teste.ok((exportar_dados((:'r_ana'::jsonb ->> 'pessoa_id')::uuid) ->> 'pedido_por') = 'responsável legal',
+                'responsável baixa os dados do dependente');
+select registrar_push('https://push.exemplo/abc', 'CHAVE-P256DH-SECRETA', 'CHAVE-AUTH-SECRETA');
+select teste.ok((exportar_dados() ->> 'aparelhos_com_push')::int = 1
+                and position('SECRETA' in exportar_dados()::text) = 0,
+                'exportação conta os aparelhos com push sem expor as chaves');
+reset role;
+select teste.ok((select count(*) >= 2 from log_auditoria where acao = 'exportar' and autor_id is not null),
+                'cada exportação fica registrada na auditoria');
+set role authenticated;
+
+-- ---------------------------------------------------------------------
 -- Exclusão (anonimização) a pedido do titular
 -- ---------------------------------------------------------------------
 select teste.como('pedro@teste.com');
