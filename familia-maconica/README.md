@@ -66,8 +66,9 @@ src/
    Depois, em Authentication → Users → *Invite user*, convide esse e-mail. Ao aceitar, o login é ligado à pessoa.
    No primeiro acesso, o app exige a verificação em duas etapas.
 5. **Variáveis**: copie `.env.example` para `.env.local` e preencha. Gere as chaves de push com `npm run vapid`.
-6. **Deploy** (ex.: Vercel). O `vercel.json` agenda o despacho de notificações a cada 5 min
-   (no plano gratuito da Vercel, cron é diário: use um agendador externo ou `pg_cron` + `pg_net` chamando
+6. **Deploy** (ex.: Vercel, região `gru1` — São Paulo). No plano gratuito da Vercel o cron é só diário
+   (`vercel.json` roda o despacho uma vez por dia, como rede de segurança). Para os avisos saírem a cada 5 minutos,
+   rode `supabase/agendar-despacho.sql` no SQL Editor (usa `pg_cron` + `pg_net` do próprio Supabase para chamar
    `POST /api/notificacoes/despachar` com `Authorization: Bearer $CRON_SECRET`).
 7. No app: **Admin → Novo núcleo → locais → organizações → nomear Secretarias**. Cada Secretaria cadastra seus membros.
 
