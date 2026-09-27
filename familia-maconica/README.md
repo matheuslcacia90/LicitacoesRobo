@@ -91,8 +91,8 @@ e `supabase/seed.sql` (cria `admin@exemplo.org.br` como administrador).
   (hoje: aceite no app pelo responsável autenticado por e-mail) e o **texto do termo**, que está marcado como
   provisório em `src/app/(app)/perfil/page.tsx` (`VERSAO_TERMO` em `src/lib/regras.ts`).
 - **Prazo de guarda** após exclusão: hoje a anonimização é imediata.
-- **Catálogo de cargos**: validar com os regulamentos. Os cargos do **Castelo de Escudeiros são genéricos** e precisam
-  ser substituídos (`supabase/migrations/20260926000004_catalogo_cargos.sql`).
+- **Catálogo de cargos**: validar com os regulamentos. Os do **Castelo de Escudeiros** seguem a Ordem dos Escudeiros
+  (migração `20260927000005_cargos_escudeiros.sql`), levantados por busca; confirmar com o regulamento vigente.
 - **Sigilo**: validar com a Potência e os Grandes Conselhos o que pode constar em título/descrição de sessões. As
   notificações push passam por servidores do Google/Apple: não coloque conteúdo reservado nos títulos.
 - **Validade do convite**: o dossiê pede 72 h, mas o Supabase limita links de e-mail a **24 h**. O app oferece

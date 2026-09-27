@@ -59,7 +59,7 @@ insert into public.cargo (tipo_organizacao, nome, ordem, vagas, para_adulto) val
   ('bethel', 'Guardião Associado',     210, 1, true),
   ('bethel', 'Membro do Conselho Guardião', 220, 10, true),
 
-  -- Castelo de Escudeiros — nomes genéricos: SUBSTITUIR pelos do regulamento
+  -- Castelo de Escudeiros — nomes provisórios, corrigidos na migração 20260927000005
   ('castelo_escudeiros', 'Escudeiro-Líder',        10, 1, false),
   ('castelo_escudeiros', 'Vice-Líder',             20, 1, false),
   ('castelo_escudeiros', 'Secretário',             30, 1, false),
