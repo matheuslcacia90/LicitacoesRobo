@@ -1,0 +1,3 @@
+﻿nome;nascimento;email;celular;id oficial;papel;responsavel;email do responsavel;celular do responsavel;parentesco
+João da Silva;05/03/2011;joao@exemplo.com;;12345;membro;Carlos da Silva;carlos@exemplo.com;(41) 99999-0000;pai
+Pedro Souza;20/01/1980;pedro@exemplo.com;(41) 98888-0000;;adulto;;;;

@@ -28,6 +28,9 @@ export default async function Membros({ params }: { params: Promise<{ org: strin
     <>
       <details className="cartao">
         <summary>Cadastrar membro</summary>
+        <p className="suave" style={{ marginTop: 8 }}>
+          Muitos membros? <a href={`/secretaria/${org}/importar`}>Importe uma planilha</a>.
+        </p>
         <Formulario acao={cadastrar.bind(null, org)} rotulo="Cadastrar e enviar convite" limparAoConcluir>
           <div className="grade-2">
             <label>Nome completo<input name="nome" required /></label>
