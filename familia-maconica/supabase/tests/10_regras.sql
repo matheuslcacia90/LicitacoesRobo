@@ -373,6 +373,34 @@ select teste.ok((select nome = 'Titular anonimizado' and email is null and data_
 select teste.ok((select count(*) = 1 from ocupacao_cargo where pessoa_id = :'joao'), 'histórico mantido após anonimização');
 
 -- ---------------------------------------------------------------------
+-- Métricas do piloto (migração 0009)
+-- ---------------------------------------------------------------------
+set role authenticated;
+select teste.como('pedro@teste.com');
+select registrar_acesso();
+select registrar_acesso();
+select teste.ok((select count(*) = 0 from metricas_piloto()), 'membro comum não vê métricas');
+select teste.erro('select * from acesso_diario', 'permission denied', 'registro de acessos fechado para leitura direta');
+select teste.como('sec.cap@teste.com');
+select teste.ok((select count(*) = 1 and bool_and(organizacao_id = :'cap') from metricas_piloto()),
+                'Secretaria vê só as métricas da própria organização');
+select teste.ok((select reunioes_30d >= 4 and gestao is not null and cargos_preenchidos >= 1
+                        and cargos_preenchidos <= cargos_total
+                        and menores_aprovados <= menores_ativos
+                        and adultos_semana >= 1 and adultos_semana <= adultos_ativos
+                   from metricas_piloto()),
+                'métricas contam reuniões, cargos da gestão, menores aprovados e uso semanal');
+select teste.como('admin@teste.com');
+select teste.ok((select count(*) = 3 from metricas_piloto()), 'administrador vê as métricas de todas as organizações');
+reset role;
+select teste.ok((select count(*) = 1 from acesso_diario a join pessoa p on p.id = a.pessoa_id
+                  where p.email = 'pedro@teste.com'), 'acesso registrado uma vez por dia');
+set role authenticated;
+select teste.como('pedro@teste.com');
+select teste.ok(jsonb_array_length(exportar_dados() -> 'dias_de_acesso') = 1, 'exportação inclui os dias de acesso');
+reset role;
+
+-- ---------------------------------------------------------------------
 -- Limpeza periódica (migração 0007)
 -- ---------------------------------------------------------------------
 -- Cenário, criado direto no banco: um ex-membro que saiu há 2 anos, outro há
@@ -389,6 +417,7 @@ insert into notificacao (pessoa_id, motivo, titulo, corpo, enviada_em) values
   (:'pedro', 'teste', 'aviso novo', 'x', now() - interval '10 days');
 insert into tentativa_login (email, falhas, atualizado_em) values ('velho@teste.com', 2, now() - interval '2 days');
 insert into log_auditoria (acao, tabela, em) values ('teste', 'teste', now() - interval '3 years');
+insert into acesso_diario (pessoa_id, dia) values (:'pedro', current_date - 100);
 
 set role authenticated;
 select teste.como('pedro@teste.com');
@@ -404,6 +433,9 @@ select teste.ok(not exists (select 1 from notificacao where titulo = 'aviso velh
 select teste.ok(not exists (select 1 from tentativa_login where email = 'velho@teste.com')
                 and exists (select 1 from tentativa_login where email = 'alguem@teste.com'),
                 'limpeza apaga tentativas de login antigas e mantém bloqueios em vigor');
+select teste.ok(not exists (select 1 from acesso_diario where dia < current_date - 90)
+                and exists (select 1 from acesso_diario where dia >= current_date - 1),
+                'limpeza apaga registros de acesso com mais de 90 dias');
 select teste.ok((select anonimizada_em is null from pessoa where id = :'ex_antigo')
                 and exists (select 1 from log_auditoria where acao = 'teste')
                 and (:'limpeza'::jsonb ->> 'contas_anonimizadas')::int = 0,

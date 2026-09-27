@@ -31,6 +31,7 @@ export default async function Admin() {
   return (
     <>
       <h1>Administração da plataforma</h1>
+      <p><a href="/metricas">Métricas do piloto</a></p>
       {nucleos.map((nu) => (
         <section key={nu.id} className="cartao">
           <h2 style={{ marginTop: 0 }}>{nu.nome} <span className="suave">{[nu.cidade, nu.uf].filter(Boolean).join('/')}</span></h2>

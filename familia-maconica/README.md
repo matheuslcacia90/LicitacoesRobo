@@ -26,9 +26,10 @@ apenas o ID oficial como referência.
 | **Notificações** | Push (PWA) + e-mail; lembretes 24h e 2h antes (cada Secretaria escolhe até 3, e os eventos já marcados são reagendados); cancelamento e mudança de horário imediatos; **menores sem notificação 22h–7h**; reuniões e cancelamentos não podem ser silenciados | `enfileirar`, `configurar_lembretes`, `/api/notificacoes/despachar` |
 | **Presença** | Membro confirma; responsável confirma pelo menor; Secretaria vê as presenças dos seus membros | `responder_evento`, `presencas_do_evento` |
 | **Eventos públicos** | Link aberto sem login (serve de cartaz) + arquivo `.ics` | `evento_publico`, `/e/[id]` |
+| **Métricas do piloto** | Painel por organização com as metas da seção 10: agenda lançada, cargos da gestão (100% em 15 dias), menores com consentimento (≥ 70%) e uso semanal dos adultos (≥ 50%). Só números, para o administrador e as Secretarias; o uso guarda só o dia do acesso, apagado após 90 dias | `metricas_piloto`, `registrar_acesso`, `/metricas` |
 | **Auditoria** | Toda criação/alteração/exclusão com autor e hora; para `pessoa`, só os nomes das colunas (sem cópia de dado pessoal) | trigger `app.auditar` |
 | **Acesso e portabilidade (LGPD)** | "Baixar meus dados" no Perfil (e na tela de conta inativa): JSON com cadastro, vínculos, cargos, consentimentos, respostas e avisos; o responsável baixa os do dependente; sem chaves de push nem senha; cada exportação é auditada | `exportar_dados`, `/meus-dados` |
-| **Limpeza automática (LGPD)** | Todo dia: apaga avisos enviados há mais de 90 dias e tentativas de login encerradas. Prontas, mas desligadas até o parecer: anonimizar contas sem vínculo há X meses e apagar auditoria antiga | `limpar_dados_antigos`, job `limpar-dados-antigos` do pg_cron |
+| **Limpeza automática (LGPD)** | Todo dia: apaga avisos enviados há mais de 90 dias, registros de acesso com mais de 90 dias e tentativas de login encerradas. Prontas, mas desligadas até o parecer: anonimizar contas sem vínculo há X meses e apagar auditoria antiga | `limpar_dados_antigos`, job `limpar-dados-antigos` do pg_cron |
 | **Exclusão (LGPD)** | A pedido do titular ou do responsável: anonimiza o cadastro, remove o login, mantém histórico anônimo | `anonimizar_pessoa` |
 
 Fora da v1 (como no dossiê): tesouraria, mensalidades, atas, conteúdo ritualístico, chat, WhatsApp.
@@ -43,7 +44,7 @@ Fora da v1 (como no dossiê): tesouraria, mensalidades, atas, conteúdo ritualí
 ```
 supabase/
   migrations/   esquema, acesso (RLS), operações (RPC) e catálogo de cargos
-  tests/        stub do Supabase + testes de regras (95 verificações)
+  tests/        stub do Supabase + testes de regras (103 verificações)
   templates/    e-mails de convite e recuperação (apontam para /auth/confirmar)
 src/
   app/          páginas: entrar, primeiro-acesso, (app)/…, secretaria/[org]/…, admin, e/[id]
@@ -111,7 +112,7 @@ O GitHub Actions (`.github/workflows/familia-maconica.yml`) roda tudo abaixo em 
 `familia-maconica/`: testes de banco num PostgreSQL 17 (mesma versão do Supabase), tipos, testes unitários e build.
 
 
-- `npm run test:db`: 95 verificações das regras no banco, rodando como os papéis reais (`authenticated`, `anon`,
+- `npm run test:db`: 103 verificações das regras no banco, rodando como os papéis reais (`authenticated`, `anon`,
   `service_role`): isolamento entre organizações, contas de menores, bloqueio/transferência/interino, conflito de
   templo, atividade conjunta em duas etapas, horário silencioso, fila de envio, bloqueio de login, exportação de dados, limpeza periódica, anonimização e
   auditoria.
