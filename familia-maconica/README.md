@@ -27,6 +27,7 @@ apenas o ID oficial como referência.
 | **Presença** | Membro confirma; responsável confirma pelo menor; Secretaria vê as presenças dos seus membros | `responder_evento`, `presencas_do_evento` |
 | **Eventos públicos** | Link aberto sem login (serve de cartaz) + arquivo `.ics` | `evento_publico`, `/e/[id]` |
 | **Auditoria** | Toda criação/alteração/exclusão com autor e hora; para `pessoa`, só os nomes das colunas (sem cópia de dado pessoal) | trigger `app.auditar` |
+| **Acesso e portabilidade (LGPD)** | "Baixar meus dados" no Perfil (e na tela de conta inativa): JSON com cadastro, vínculos, cargos, consentimentos, respostas e avisos; o responsável baixa os do dependente; sem chaves de push nem senha; cada exportação é auditada | `exportar_dados`, `/meus-dados` |
 | **Exclusão (LGPD)** | A pedido do titular ou do responsável: anonimiza o cadastro, remove o login, mantém histórico anônimo | `anonimizar_pessoa` |
 
 Fora da v1 (como no dossiê): tesouraria, mensalidades, atas, conteúdo ritualístico, chat, WhatsApp.
@@ -41,7 +42,7 @@ Fora da v1 (como no dossiê): tesouraria, mensalidades, atas, conteúdo ritualí
 ```
 supabase/
   migrations/   esquema, acesso (RLS), operações (RPC) e catálogo de cargos
-  tests/        stub do Supabase + testes de regras (72 verificações)
+  tests/        stub do Supabase + testes de regras (83 verificações)
   templates/    e-mails de convite e recuperação (apontam para /auth/confirmar)
 src/
   app/          páginas: entrar, primeiro-acesso, (app)/…, secretaria/[org]/…, admin, e/[id]
@@ -108,9 +109,9 @@ O GitHub Actions (`.github/workflows/familia-maconica.yml`) roda tudo abaixo em 
 `familia-maconica/`: testes de banco num PostgreSQL 17 (mesma versão do Supabase), tipos, testes unitários e build.
 
 
-- `npm run test:db`: 72 verificações das regras no banco, rodando como os papéis reais (`authenticated`, `anon`,
+- `npm run test:db`: 83 verificações das regras no banco, rodando como os papéis reais (`authenticated`, `anon`,
   `service_role`): isolamento entre organizações, contas de menores, bloqueio/transferência/interino, conflito de
-  templo, atividade conjunta em duas etapas, horário silencioso, fila de envio, bloqueio de login, anonimização e
+  templo, atividade conjunta em duas etapas, horário silencioso, fila de envio, bloqueio de login, exportação de dados, anonimização e
   auditoria.
 - `npm test`, `npm run typecheck` e `next build`.
 - **Não testado ainda**: as telas contra um Supabase real (convite por e-mail, TOTP, push). Faça um roteiro de teste

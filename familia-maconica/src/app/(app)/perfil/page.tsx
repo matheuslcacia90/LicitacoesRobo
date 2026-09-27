@@ -103,6 +103,7 @@ export default async function PerfilPagina() {
                               confirmar="A conta do dependente será suspensa até nova aprovação. Continuar?">
                     <input type="hidden" name="menor" value={d.pessoa_id} />
                   </Formulario>
+                  <p><a href={`/meus-dados?pessoa=${d.pessoa_id}`} download>Baixar os dados de {d.nome.split(' ')[0]}</a></p>
                   <Formulario acao={excluirDependente} rotulo="Excluir dados do dependente" perigo>
                     <input type="hidden" name="menor" value={d.pessoa_id} />
                     <label>Para excluir definitivamente, digite EXCLUIR<input name="confirmacao" autoComplete="off" /></label>
@@ -116,6 +117,7 @@ export default async function PerfilPagina() {
 
       <h2>Segurança e conta</h2>
       <p><a href="/seguranca">Verificação em duas etapas</a></p>
+      <p><a href="/meus-dados" download>Baixar meus dados</a> <span className="suave">(arquivo JSON com tudo o que o app guarda sobre você)</span></p>
       <form action="/sair" method="post"><button className="secundario">Sair</button></form>
       <details style={{ marginTop: 16 }}>
         <summary>Excluir minha conta</summary>
