@@ -28,6 +28,7 @@ apenas o ID oficial como referência.
 | **Eventos públicos** | Link aberto sem login (serve de cartaz) + arquivo `.ics` | `evento_publico`, `/e/[id]` |
 | **Auditoria** | Toda criação/alteração/exclusão com autor e hora; para `pessoa`, só os nomes das colunas (sem cópia de dado pessoal) | trigger `app.auditar` |
 | **Acesso e portabilidade (LGPD)** | "Baixar meus dados" no Perfil (e na tela de conta inativa): JSON com cadastro, vínculos, cargos, consentimentos, respostas e avisos; o responsável baixa os do dependente; sem chaves de push nem senha; cada exportação é auditada | `exportar_dados`, `/meus-dados` |
+| **Limpeza automática (LGPD)** | Todo dia: apaga avisos enviados há mais de 90 dias e tentativas de login encerradas. Prontas, mas desligadas até o parecer: anonimizar contas sem vínculo há X meses e apagar auditoria antiga | `limpar_dados_antigos`, job `limpar-dados-antigos` do pg_cron |
 | **Exclusão (LGPD)** | A pedido do titular ou do responsável: anonimiza o cadastro, remove o login, mantém histórico anônimo | `anonimizar_pessoa` |
 
 Fora da v1 (como no dossiê): tesouraria, mensalidades, atas, conteúdo ritualístico, chat, WhatsApp.
@@ -42,7 +43,7 @@ Fora da v1 (como no dossiê): tesouraria, mensalidades, atas, conteúdo ritualí
 ```
 supabase/
   migrations/   esquema, acesso (RLS), operações (RPC) e catálogo de cargos
-  tests/        stub do Supabase + testes de regras (83 verificações)
+  tests/        stub do Supabase + testes de regras (90 verificações)
   templates/    e-mails de convite e recuperação (apontam para /auth/confirmar)
 src/
   app/          páginas: entrar, primeiro-acesso, (app)/…, secretaria/[org]/…, admin, e/[id]
@@ -70,7 +71,7 @@ src/
 6. **Deploy** (ex.: Vercel, região `gru1` — São Paulo). No plano gratuito da Vercel o cron é só diário
    (`vercel.json` roda o despacho uma vez por dia, como rede de segurança). Para os avisos saírem a cada 5 minutos,
    rode `supabase/agendar-despacho.sql` no SQL Editor (usa `pg_cron` + `pg_net` do próprio Supabase para chamar
-   `POST /api/notificacoes/despachar` com `Authorization: Bearer $CRON_SECRET`).
+   `POST /api/notificacoes/despachar` com `Authorization: Bearer $CRON_SECRET`). O mesmo arquivo agenda a limpeza diária.
 7. No app: **Admin → Novo núcleo → locais → organizações → nomear Secretarias**. Cada Secretaria cadastra seus membros.
 
 ## Desenvolvimento
@@ -91,7 +92,8 @@ e `supabase/seed.sql` (cria `admin@exemplo.org.br` como administrador).
 - **Parecer jurídico (LGPD art. 14 e ECA Digital)**: validar faixas etárias, forma de verificação do responsável
   (hoje: aceite no app pelo responsável autenticado por e-mail) e o **texto do termo**, que está marcado como
   provisório em `src/app/(app)/perfil/page.tsx` (`VERSAO_TERMO` em `src/lib/regras.ts`).
-- **Prazo de guarda** após exclusão: hoje a anonimização é imediata.
+- **Prazo de guarda** após exclusão: hoje a anonimização é imediata. Os prazos para anonimizar contas inativas e
+  apagar auditoria antiga já têm rotina (`limpar_dados_antigos`), mas ficam desligados até o parecer definir os meses.
 - **Catálogo de cargos**: validar com os regulamentos. Os do **Castelo de Escudeiros** seguem a Ordem dos Escudeiros
   (migração `20260927000005_cargos_escudeiros.sql`), levantados por busca; confirmar com o regulamento vigente.
 - **Sigilo**: validar com a Potência e os Grandes Conselhos o que pode constar em título/descrição de sessões. As
@@ -109,9 +111,9 @@ O GitHub Actions (`.github/workflows/familia-maconica.yml`) roda tudo abaixo em 
 `familia-maconica/`: testes de banco num PostgreSQL 17 (mesma versão do Supabase), tipos, testes unitários e build.
 
 
-- `npm run test:db`: 83 verificações das regras no banco, rodando como os papéis reais (`authenticated`, `anon`,
+- `npm run test:db`: 90 verificações das regras no banco, rodando como os papéis reais (`authenticated`, `anon`,
   `service_role`): isolamento entre organizações, contas de menores, bloqueio/transferência/interino, conflito de
-  templo, atividade conjunta em duas etapas, horário silencioso, fila de envio, bloqueio de login, exportação de dados, anonimização e
+  templo, atividade conjunta em duas etapas, horário silencioso, fila de envio, bloqueio de login, exportação de dados, limpeza periódica, anonimização e
   auditoria.
 - `npm test`, `npm run typecheck` e `next build`.
 - **Não testado ainda**: as telas contra um Supabase real (convite por e-mail, TOTP, push). Faça um roteiro de teste

@@ -354,6 +354,57 @@ select teste.ok((select nome = 'Titular anonimizado' and email is null and data_
 select teste.ok((select count(*) = 1 from ocupacao_cargo where pessoa_id = :'joao'), 'histórico mantido após anonimização');
 
 -- ---------------------------------------------------------------------
+-- Limpeza periódica (migração 0007)
+-- ---------------------------------------------------------------------
+-- Cenário, criado direto no banco: um ex-membro que saiu há 2 anos, outro há
+-- 1 mês, avisos e tentativas de login antigas e um registro de auditoria velho.
+insert into pessoa (nome, email) values ('Ex Antigo', 'ex.antigo@teste.com'), ('Ex Recente', 'ex.recente@teste.com');
+select teste.aceitar_convite(e) from unnest(array['ex.antigo@teste.com', 'ex.recente@teste.com']) e;
+select id as ex_antigo from pessoa where email = 'ex.antigo@teste.com' \gset
+select id as ex_recente from pessoa where email = 'ex.recente@teste.com' \gset
+insert into vinculo (pessoa_id, organizacao_id, ativo, inicio, fim) values
+  (:'ex_antigo', :'loja', false, current_date - 1500, current_date - 730),
+  (:'ex_recente', :'loja', false, current_date - 400, current_date - 30);
+insert into notificacao (pessoa_id, motivo, titulo, corpo, enviada_em) values
+  (:'pedro', 'teste', 'aviso velho', 'x', now() - interval '100 days'),
+  (:'pedro', 'teste', 'aviso novo', 'x', now() - interval '10 days');
+insert into tentativa_login (email, falhas, atualizado_em) values ('velho@teste.com', 2, now() - interval '2 days');
+insert into log_auditoria (acao, tabela, em) values ('teste', 'teste', now() - interval '3 years');
+
+set role authenticated;
+select teste.como('pedro@teste.com');
+select teste.erro('select limpar_dados_antigos()', 'permission denied', 'limpeza fechada para usuários');
+reset role;
+
+set role service_role;
+select limpar_dados_antigos() as limpeza \gset
+reset role;
+select teste.ok(not exists (select 1 from notificacao where titulo = 'aviso velho')
+                and exists (select 1 from notificacao where titulo = 'aviso novo'),
+                'limpeza apaga avisos enviados há mais de 90 dias e mantém os recentes');
+select teste.ok(not exists (select 1 from tentativa_login where email = 'velho@teste.com')
+                and exists (select 1 from tentativa_login where email = 'alguem@teste.com'),
+                'limpeza apaga tentativas de login antigas e mantém bloqueios em vigor');
+select teste.ok((select anonimizada_em is null from pessoa where id = :'ex_antigo')
+                and exists (select 1 from log_auditoria where acao = 'teste')
+                and (:'limpeza'::jsonb ->> 'contas_anonimizadas')::int = 0,
+                'sem prazo definido, a limpeza não anonimiza contas nem apaga auditoria');
+
+set role service_role;
+select limpar_dados_antigos(90, 12, 24) as limpeza \gset
+reset role;
+select teste.ok((select anonimizada_em is not null and email is null from pessoa where id = :'ex_antigo')
+                and not exists (select 1 from auth.users where email = 'ex.antigo@teste.com'),
+                'com prazo de 12 meses, conta sem vínculo há 2 anos é anonimizada e o login removido');
+select teste.ok((select anonimizada_em is null from pessoa where id = :'ex_recente')
+                and (select anonimizada_em is null from pessoa where id = :'pedro')
+                and (select anonimizada_em is null from pessoa where email = 'pai.joao@teste.com'),
+                'contas recentes, ativas ou de responsáveis continuam intactas');
+select teste.ok(not exists (select 1 from log_auditoria where acao = 'teste')
+                and exists (select 1 from log_auditoria where em > now() - interval '1 day'),
+                'com prazo de 24 meses, só a auditoria mais antiga é apagada');
+
+-- ---------------------------------------------------------------------
 -- Catálogo de cargos do Castelo de Escudeiros (migração 0005)
 -- ---------------------------------------------------------------------
 select teste.ok((select count(*) = 0 from cargo
