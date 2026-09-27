@@ -176,3 +176,10 @@ export function avaliarMetricas(m: MetricasOrganizacao, hoje: Date = new Date())
 
   return { agenda, cargos, menores, uso }
 }
+
+// "Domingo, 18 de outubro de 2026" (só a primeira letra maiúscula).
+const DATA_LONGA = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+export function dataPorExtenso(iso: string): string {
+  const s = DATA_LONGA.format(new Date(iso))
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
