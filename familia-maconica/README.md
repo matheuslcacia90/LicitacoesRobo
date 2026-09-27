@@ -103,6 +103,10 @@ e `supabase/seed.sql` (cria `admin@exemplo.org.br` como administrador).
 
 ## Testes feitos
 
+O GitHub Actions (`.github/workflows/familia-maconica.yml`) roda tudo abaixo em cada PR que mexe em
+`familia-maconica/`: testes de banco num PostgreSQL 17 (mesma versão do Supabase), tipos, testes unitários e build.
+
+
 - `npm run test:db`: 72 verificações das regras no banco, rodando como os papéis reais (`authenticated`, `anon`,
   `service_role`): isolamento entre organizações, contas de menores, bloqueio/transferência/interino, conflito de
   templo, atividade conjunta em duas etapas, horário silencioso, fila de envio, bloqueio de login, anonimização e
