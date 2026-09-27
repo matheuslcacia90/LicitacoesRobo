@@ -165,6 +165,25 @@ select teste.ok((select count(*) = 0 from notificacao where evento_id = (:'serie
                 'série não repete aviso de criação');
 select teste.ok((select count(*) > 0 from notificacao where evento_id = (:'serie'::uuid[])[4] and motivo like 'lembrete%'),
                 'lembretes agendados para cada data da série');
+
+-- Lembretes configuráveis por organização (migração 0008)
+set role authenticated;
+select teste.como('sec.loja@teste.com');
+select teste.erro(format($$select configurar_lembretes(%L, '{48}')$$, :'cap'), 'Apenas a Secretaria',
+                  'Secretaria não configura lembretes de outra organização');
+select teste.como('sec.cap@teste.com');
+select teste.erro(format($$select configurar_lembretes(%L, '{200}')$$, :'cap'), '1 a 168', 'lembrete acima de 7 dias recusado');
+select teste.erro(format($$select configurar_lembretes(%L, '{48,24,2,1}')$$, :'cap'), 'No máximo 3', 'mais de 3 lembretes recusado');
+select teste.ok(configurar_lembretes(:'cap', '{1,48,48}') = '{48,1}', 'lembretes normalizados: sem repetição, do maior para o menor');
+reset role;
+select teste.ok(exists (select 1 from notificacao where evento_id = (:'serie'::uuid[])[4] and motivo = 'lembrete_48h'
+                          and descartada_em is null)
+                and not exists (select 1 from notificacao where evento_id = (:'serie'::uuid[])[4] and motivo = 'lembrete_24h'
+                                  and descartada_em is null),
+                'eventos futuros reagendados com os novos lembretes');
+set role authenticated;
+select configurar_lembretes(:'cap', '{24,2}');
+reset role;
 select teste.ok(app.ajustar_silencio('2026-10-01 23:30-03', p.id) = '2026-10-02 07:00-03'::timestamptz
                 and app.ajustar_silencio('2026-10-01 05:00-03', p.id) = '2026-10-01 07:00-03'::timestamptz
                 and app.ajustar_silencio('2026-10-01 15:00-03', p.id) = '2026-10-01 15:00-03'::timestamptz,

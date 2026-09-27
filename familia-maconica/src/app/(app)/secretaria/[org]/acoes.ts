@@ -146,6 +146,15 @@ export async function criarEvento(org: string, _: EstadoAcao, fd: FormData) {
   }, [`${base(org)}/agenda`, '/agenda', '/'])
 }
 
+export async function configurarLembretes(org: string, _: EstadoAcao, fd: FormData) {
+  return executar(async () => {
+    const horas = fd.getAll('horas').map(Number).filter((h) => Number.isInteger(h) && h > 0)
+    const sb = await clienteServidor()
+    const salvas = checar(await sb.rpc('configurar_lembretes', { p_org: org, p_horas: horas })) as number[]
+    return salvas.length ? 'Lembretes salvos. Eventos futuros reagendados.' : 'Lembretes desligados.'
+  }, [`${base(org)}/agenda`])
+}
+
 export async function responderParticipacao(org: string, _: EstadoAcao, fd: FormData) {
   return executar(async () => {
     const aceitar = texto(fd, 'decisao') === 'aceitar'
