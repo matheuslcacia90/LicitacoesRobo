@@ -68,6 +68,11 @@ export default async function AgendaSecretaria({ params }: { params: Promise<{ o
       <details className="cartao" open={pendentes.length === 0}>
         <summary>Novo evento</summary>
         <Formulario acao={criarEvento.bind(null, org)} rotulo="Criar e avisar">
+          <p className="aviso info">
+            O título vai nas notificações e no e-mail: passa por servidores do Google e da Apple e aparece na tela
+            bloqueada do celular. Em evento público, título e descrição ficam visíveis para qualquer pessoa com o link.
+            Não coloque conteúdo reservado, grau ou nome de cerimônia sigilosa no título nem na descrição.
+          </p>
           <div className="grade-2">
             <label>Tipo
               <select name="tipo" defaultValue="reuniao">
