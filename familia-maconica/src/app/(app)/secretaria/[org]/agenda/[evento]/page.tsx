@@ -38,7 +38,7 @@ export default async function EventoSecretaria({ params }: { params: Promise<{ o
       <h2>{e.titulo} {e.cancelado_em && <span className="etiqueta erro">cancelado</span>}</h2>
       <p className="suave">
         {NOME_TIPO_EVENTO[e.tipo as keyof typeof NOME_TIPO_EVENTO]} · {dataCurta(e.inicio)} {hora(e.inicio)}–{hora(e.fim)}
-        {e.publico && <> · <Link href={`/e/${e.id}`}>link público</Link></>}
+        {e.publico && <> · <Link href={`/e/${e.id}`}>link público</Link> · <Link href={`/e/${e.id}/cartaz`}>cartaz</Link></>}
       </p>
       {e.descricao && <p>{e.descricao}</p>}
       {participantes.length > 1 && (

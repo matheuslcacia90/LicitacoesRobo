@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  avaliarMetricas, deslocarMes, faixaEtaria, intervaloDoMes, isoDeBrasilia, mensagemErro, podeSilenciar,
+  avaliarMetricas, dataPorExtenso, deslocarMes, faixaEtaria, intervaloDoMes, isoDeBrasilia, mensagemErro, podeSilenciar,
   respostasPossiveis, validarSenha,
 } from './regras'
 
@@ -84,5 +84,12 @@ describe('avaliarMetricas (metas da seção 10)', () => {
     expect(r.agenda.status).toBe('erro')
     expect(r.menores.status).toBe('erro')
     expect(r.uso.status).toBe('sem-dados')
+  })
+})
+
+describe('dataPorExtenso', () => {
+  it('só a primeira letra maiúscula, no fuso de Brasília', () => {
+    expect(dataPorExtenso('2026-10-18T15:00:00Z')).toBe('Domingo, 18 de outubro de 2026')
+    expect(dataPorExtenso('2026-10-19T02:30:00Z')).toBe('Domingo, 18 de outubro de 2026')
   })
 })
