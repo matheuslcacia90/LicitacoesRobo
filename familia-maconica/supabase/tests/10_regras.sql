@@ -473,6 +473,48 @@ select teste.ok((select bool_and(para_adulto) from cargo
                 'Escudeiros: Nobre Cavaleiro e Consultor exclusivos de adultos');
 
 -- ---------------------------------------------------------------------
+-- Diagnóstico da instalação (migração 0010)
+-- ---------------------------------------------------------------------
+set role authenticated;
+select teste.como('pedro@teste.com');
+select teste.erro('select diagnostico_instalacao()', 'Apenas administradores', 'diagnóstico fechado para quem não é administrador');
+select teste.como('admin@teste.com');
+select diagnostico_instalacao() as diag \gset
+reset role;
+select teste.ok((select bool_and(v::boolean) from jsonb_each_text(:'diag'::jsonb -> 'funcoes') as t(k, v))
+                and (:'diag'::jsonb ->> 'cargos_escudeiros')::int = 12,
+                'diagnóstico: atualizações do banco aplicadas e 12 cargos dos Escudeiros');
+select teste.ok((:'diag'::jsonb -> 'cron') = 'null'::jsonb
+                and (:'diag'::jsonb -> 'estrutura' ->> 'administradores_com_login')::int = 1
+                and (:'diag'::jsonb -> 'estrutura' ->> 'organizacoes')::int = 3
+                and :'diag' not like '%@teste.com%',
+                'diagnóstico: sem pg_cron responde nulo, conta a estrutura e não traz e-mails');
+
+-- Imita as tabelas do pg_cron e do pg_net para testar a leitura dos agendamentos.
+create schema cron;
+create table cron.job (jobid bigint primary key, jobname text, schedule text, command text, active boolean);
+create table cron.job_run_details (jobid bigint, status text, start_time timestamptz, return_message text);
+create schema net;
+create table net._http_response (id bigint, status_code int, content text, created timestamptz,
+                                 error_msg text, timed_out boolean);
+insert into cron.job values (1, 'despachar-notificacoes', '*/5 * * * *', 'Bearer segredo-do-cron', true),
+                            (2, 'outro-job', '* * * * *', 'x', true);
+insert into cron.job_run_details values (1, 'failed', now() - interval '10 minutes', 'x'),
+                                        (1, 'succeeded', now() - interval '5 minutes', 'x');
+insert into net._http_response values (1, 401, 'corpo-secreto', now(), null, false);
+set role authenticated;
+select teste.como('admin@teste.com');
+select diagnostico_instalacao() as diag \gset
+reset role;
+select teste.ok(jsonb_array_length(:'diag'::jsonb -> 'cron') = 1
+                and (:'diag'::jsonb -> 'cron' -> 0 ->> 'ultima_status') = 'succeeded'
+                and (:'diag'::jsonb -> 'ultima_resposta_http' ->> 'status')::int = 401
+                and :'diag' not like '%segredo-do-cron%' and :'diag' not like '%corpo-secreto%',
+                'diagnóstico: lê a última execução do agendamento e o status HTTP sem expor o segredo');
+drop schema cron cascade;
+drop schema net cascade;
+
+-- ---------------------------------------------------------------------
 -- Auditoria
 -- ---------------------------------------------------------------------
 select teste.ok((select count(*) > 0 from log_auditoria where tabela = 'vinculo' and acao = 'update' and autor_id is not null),
