@@ -60,7 +60,9 @@ src/
    - URL Configuration: *Site URL* = endereço do app; *Redirect URLs* = `https://seu-app/**`.
    - Providers → Email: desligue o cadastro aberto (*Allow new users to sign up* = off). Senha mínima 8, letras e números.
    - Multi-Factor: habilite **TOTP**.
-   - Email Templates: use `supabase/templates/convite.html` (Invite) e `recuperacao.html` (Reset password).
+   - Email Templates (opcional; o Supabase só deixa editar com SMTP próprio): use `supabase/templates/convite.html`
+     (Invite) e `recuperacao.html` (Reset password). Com os modelos padrão o app também funciona: `/auth/confirmar`
+     e `/auth/sessao` aceitam o link padrão (sessão no `#fragmento`) e o fluxo PKCE (`?code=`).
    - Configure um SMTP próprio (o SMTP padrão do Supabase tem limite baixo de envio — só alguns e-mails por hora,
      o que trava a importação por planilha).
 4. **Primeiro administrador** (SQL Editor, uma única vez):

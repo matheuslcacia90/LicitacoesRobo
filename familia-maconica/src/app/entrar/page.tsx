@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CapturarSessao } from '@/componentes/CapturarSessao'
 import { Formulario } from '@/componentes/Formulario'
 import { entrar } from './acoes'
 
@@ -10,6 +11,8 @@ export default async function Entrar({ searchParams }: { searchParams: Promise<{
     <main className="estreita">
       <h1>Família Maçônica</h1>
       <p className="suave">Loja · DeMolay · Escudeiros · Filhas de Jó</p>
+      {/* Convite feito pelo painel do Supabase cai aqui com a sessão no #fragmento. */}
+      <CapturarSessao />
       {link === 'expirado' && (
         <p className="aviso info">
           O link expirou ou já foi usado. Peça à Secretaria para reenviar o convite, ou use “Esqueci a senha”.
