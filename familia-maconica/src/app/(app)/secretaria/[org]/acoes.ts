@@ -1,8 +1,10 @@
 'use server'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { checar, executar, opcional, texto } from '@/lib/acao'
 import { enviarConvites } from '@/lib/convites'
-import { isoDeBrasilia } from '@/lib/regras'
+import { lerPlanilha } from '@/lib/importacao'
+import { isoDeBrasilia, mensagemErro } from '@/lib/regras'
 import { clienteServidor } from '@/lib/supabase/servidor'
 import type { CargoBloqueante, EstadoAcao, Papel, TipoEvento } from '@/lib/tipos'
 
@@ -31,6 +33,45 @@ export async function cadastrar(org: string, _: EstadoAcao, fd: FormData) {
     if (falhas.length) partes.push(`Falha ao enviar para ${falhas.join(', ')} — use "Reenviar convite".`)
     return partes.join(' ')
   }, base(org))
+}
+
+export type ResultadoImportacao = {
+  erro?: string
+  linhas?: { linha: number; nome: string; ok: boolean; mensagem: string }[]
+  convitesComFalha?: string[]
+}
+
+// Importação em lote: relê a planilha no servidor e cadastra linha a linha com
+// as mesmas regras do cadastro individual (cadastrar_membro).
+export async function importarMembros(org: string, texto: string): Promise<ResultadoImportacao> {
+  const leitura = lerPlanilha(texto)
+  if (leitura.erroGeral) return { erro: leitura.erroGeral }
+  const sb = await clienteServidor()
+  const linhas: NonNullable<ResultadoImportacao['linhas']> = leitura.erros.map((e) => ({
+    linha: e.linha, nome: '', ok: false, mensagem: `Não importada: ${e.mensagem}`,
+  }))
+  const convites = new Set<string>()
+  for (const l of leitura.linhas) {
+    const { data, error } = await sb.rpc('cadastrar_membro', {
+      p_org: org, p_nome: l.nome, p_nascimento: l.nascimento, p_email: l.email, p_celular: l.celular,
+      p_id_oficial: l.id_oficial, p_papel: l.papel, p_resp_nome: l.resp_nome, p_resp_email: l.resp_email,
+      p_resp_celular: l.resp_celular, p_resp_parentesco: l.resp_parentesco,
+    })
+    if (error) {
+      linhas.push({ linha: l.linha, nome: l.nome, ok: false, mensagem: mensagemErro(error) })
+      continue
+    }
+    const r = data as { reutilizada: boolean; convites: string[] }
+    r.convites.forEach((c) => convites.add(c))
+    linhas.push({
+      linha: l.linha, nome: l.nome, ok: true,
+      mensagem: r.reutilizada ? 'Já tinha cadastro em outra organização: vínculo adicionado.' : 'Cadastrado.',
+    })
+  }
+  const convitesComFalha = await enviarConvites([...convites])
+  revalidatePath(base(org))
+  linhas.sort((a, b) => a.linha - b.linha)
+  return { linhas, convitesComFalha }
 }
 
 export async function reenviarConvite(org: string, _: EstadoAcao, fd: FormData) {

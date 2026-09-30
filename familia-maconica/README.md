@@ -13,6 +13,7 @@ apenas o ID oficial como referência.
 |---|---|---|
 | **Perfis** | Administrador da plataforma, Secretaria, membro adulto, responsável legal, membro menor | RLS + funções no banco |
 | **Isolamento** | Cada Secretaria só vê e administra os vínculos da própria organização; o administrador não vê dados de membros | `pode_ver_pessoa`, políticas RLS |
+| **Importação por planilha** | CSV do Excel/Google Planilhas (ou colado): conferência linha a linha no navegador antes de gravar; depois cadastra com as mesmas regras do cadastro individual e envia os convites; até 300 linhas; modelo em `/modelo-membros.csv` | `lerPlanilha`, `importarMembros`, `/secretaria/[org]/importar` |
 | **Uma conta, vários vínculos** | Cadastro pelo mesmo e-mail reaproveita a pessoa; cada Secretaria ativa/desativa só o seu vínculo; a conta fica inativa sem vínculo ativo | `cadastrar_membro`, `conta_ativa` |
 | **Convite de primeiro acesso** | A pessoa cria a própria senha pelo link; a Secretaria nunca vê senhas; reenvio de convite | Supabase Auth + `/auth/confirmar` |
 | **Login** | E-mail + senha (mín. 8, letras e números), bloqueio de 15 min após 5 erros, recuperação por e-mail | `registrar_falha_login` |
@@ -60,7 +61,8 @@ src/
    - Providers → Email: desligue o cadastro aberto (*Allow new users to sign up* = off). Senha mínima 8, letras e números.
    - Multi-Factor: habilite **TOTP**.
    - Email Templates: use `supabase/templates/convite.html` (Invite) e `recuperacao.html` (Reset password).
-   - Configure um SMTP próprio (o SMTP padrão do Supabase tem limite baixo de envio).
+   - Configure um SMTP próprio (o SMTP padrão do Supabase tem limite baixo de envio — só alguns e-mails por hora,
+     o que trava a importação por planilha).
 4. **Primeiro administrador** (SQL Editor, uma única vez):
    ```sql
    insert into pessoa (nome, email) values ('Seu Nome', 'voce@exemplo.org.br');
