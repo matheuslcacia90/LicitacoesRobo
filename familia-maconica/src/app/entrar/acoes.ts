@@ -33,7 +33,7 @@ export async function recuperar(_: EstadoAcao, fd: FormData): Promise<EstadoAcao
   if (email) {
     const sb = await clienteServidor()
     await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/primeiro-acesso`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirmar`,
     })
   }
   // Mesma resposta sempre, para não revelar quem tem cadastro.

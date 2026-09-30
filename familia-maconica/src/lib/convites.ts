@@ -10,7 +10,7 @@ export async function enviarConvites(emails: string[]): Promise<string[]> {
   const falhas: string[] = []
   for (const email of emails) {
     const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${site}/primeiro-acesso`,
+      redirectTo: `${site}/auth/confirmar`,
     })
     if (error && !/already been registered/i.test(error.message)) falhas.push(email)
   }
