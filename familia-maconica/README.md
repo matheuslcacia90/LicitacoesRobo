@@ -28,6 +28,7 @@ apenas o ID oficial como referência.
 | **Presença** | Membro confirma; responsável confirma pelo menor; Secretaria vê as presenças dos seus membros | `responder_evento`, `presencas_do_evento` |
 | **Eventos públicos** | Link aberto sem login + arquivo `.ics` + **cartaz A4** para imprimir ou salvar em PDF, com QR code para o link | `evento_publico`, `/e/[id]`, `/e/[id]/cartaz` |
 | **Métricas do piloto** | Painel por organização com as metas da seção 10: agenda lançada, cargos da gestão (100% em 15 dias), menores com consentimento (≥ 70%) e uso semanal dos adultos (≥ 50%). Só números, para o administrador e as Secretarias; o uso guarda só o dia do acesso, apagado após 90 dias | `metricas_piloto`, `registrar_acesso`, `/metricas` |
+| **Diagnóstico da instalação** | Página do administrador que confere variáveis da Vercel (só se existem, nunca o valor), cadastro aberto no Supabase Auth, atualizações do banco, agendamentos do pg_cron (última execução e resposta do app, sem expor o segredo), fila de avisos atrasados e passos da implantação, dizendo como corrigir cada item | `diagnostico_instalacao`, `/admin/diagnostico` |
 | **Auditoria** | Toda criação/alteração/exclusão com autor e hora; para `pessoa`, só os nomes das colunas (sem cópia de dado pessoal) | trigger `app.auditar` |
 | **Acesso e portabilidade (LGPD)** | "Baixar meus dados" no Perfil (e na tela de conta inativa): JSON com cadastro, vínculos, cargos, consentimentos, respostas e avisos; o responsável baixa os do dependente; sem chaves de push nem senha; cada exportação é auditada | `exportar_dados`, `/meus-dados` |
 | **Limpeza automática (LGPD)** | Todo dia: apaga avisos enviados há mais de 90 dias, registros de acesso com mais de 90 dias e tentativas de login encerradas. Prontas, mas desligadas até o parecer: anonimizar contas sem vínculo há X meses e apagar auditoria antiga | `limpar_dados_antigos`, job `limpar-dados-antigos` do pg_cron |
@@ -77,7 +78,8 @@ src/
    (`vercel.json` roda o despacho uma vez por dia, como rede de segurança). Para os avisos saírem a cada 5 minutos,
    rode `supabase/agendar-despacho.sql` no SQL Editor (usa `pg_cron` + `pg_net` do próprio Supabase para chamar
    `POST /api/notificacoes/despachar` com `Authorization: Bearer $CRON_SECRET`). O mesmo arquivo agenda a limpeza diária.
-7. No app: **Admin → Novo núcleo → locais → organizações → nomear Secretarias**. Cada Secretaria cadastra seus membros.
+7. No app, abra **Admin → Diagnóstico da instalação** e corrija o que aparecer em vermelho.
+8. No app: **Admin → Novo núcleo → locais → organizações → nomear Secretarias**. Cada Secretaria cadastra seus membros.
 
 ## Desenvolvimento
 
