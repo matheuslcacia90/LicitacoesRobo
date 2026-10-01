@@ -1,7 +1,9 @@
 'use server'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { checar, executar, texto } from '@/lib/acao'
-import { VERSAO_TERMO } from '@/lib/regras'
+import { novoToken, urlsDaAssinatura } from '@/lib/assinatura'
+import { VERSAO_TERMO, mensagemErro } from '@/lib/regras'
 import { clienteServico, clienteServidor } from '@/lib/supabase/servidor'
 import type { EstadoAcao, TipoEvento, TipoResposta } from '@/lib/tipos'
 
@@ -110,5 +112,26 @@ export async function excluirDependente(_: EstadoAcao, fd: FormData) {
     if (texto(fd, 'confirmacao').toUpperCase() !== 'EXCLUIR') throw new Error('Digite EXCLUIR para confirmar.')
     await anonimizar(texto(fd, 'menor'))
     return 'Dados do dependente excluídos.'
+  }, '/perfil')
+}
+
+// Agenda no celular: o link só é mostrado agora; o banco guarda o hash.
+export async function gerarLinkAgenda(): Promise<{ erro?: string; urls?: ReturnType<typeof urlsDaAssinatura> }> {
+  try {
+    const { token, hash } = novoToken()
+    const sb = await clienteServidor()
+    checar(await sb.rpc('criar_assinatura_agenda', { p_token_hash: hash }))
+    revalidatePath('/perfil')
+    return { urls: urlsDaAssinatura(token) }
+  } catch (e) {
+    return { erro: mensagemErro(e) }
+  }
+}
+
+export async function desligarLinkAgenda() {
+  return executar(async () => {
+    const sb = await clienteServidor()
+    checar(await sb.rpc('revogar_assinatura_agenda'))
+    return 'Link desligado. O calendário do celular deixa de receber a agenda na próxima atualização.'
   }, '/perfil')
 }

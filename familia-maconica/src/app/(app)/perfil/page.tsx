@@ -1,6 +1,8 @@
+import { AgendaNoCelular } from '@/componentes/AgendaNoCelular'
 import { AtivarPush } from '@/componentes/AtivarPush'
 import { Formulario } from '@/componentes/Formulario'
 import { exigirPerfilAtivo } from '@/lib/sessao'
+import { clienteServidor } from '@/lib/supabase/servidor'
 import { NOME_FAIXA, NOME_TIPO_EVENTO, podeSilenciar, VERSAO_TERMO } from '@/lib/regras'
 import type { TipoEvento } from '@/lib/tipos'
 import {
@@ -15,6 +17,9 @@ const TIPOS: TipoEvento[] = ['reuniao', 'conjunta', 'individual', 'convite', 'ev
 export default async function PerfilPagina() {
   const perfil = await exigirPerfilAtivo()
   const { pessoa } = perfil
+  const crianca = pessoa.faixa === 'crianca'
+  const assinatura = crianca ? null
+    : ((await (await clienteServidor()).rpc('minha_assinatura_agenda')).data as { criado_em: string; usado_em: string | null } | null)
   const pref = (t: TipoEvento) => perfil.preferencias.find((p) => p.tipo === t) ?? { push: true, email: true }
 
   return (
@@ -52,6 +57,13 @@ export default async function PerfilPagina() {
           <p className="suave">Reuniões e cancelamentos sempre chegam por ao menos um canal.</p>
         </Formulario>
       </details>
+
+      {!crianca && (
+        <section id="agenda-no-celular">
+          <h2>Agenda no celular</h2>
+          <AgendaNoCelular atual={assinatura} />
+        </section>
+      )}
 
       {perfil.dependentes.length > 0 && (
         <section id="dependentes">

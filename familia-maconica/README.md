@@ -27,6 +27,7 @@ apenas o ID oficial como referência.
 | **Notificações** | Push (PWA) + e-mail; lembretes 24h e 2h antes (cada Secretaria escolhe até 3, e os eventos já marcados são reagendados); cancelamento e mudança de horário imediatos; **menores sem notificação 22h–7h**; reuniões e cancelamentos não podem ser silenciados | `enfileirar`, `configurar_lembretes`, `/api/notificacoes/despachar` |
 | **Presença** | Membro confirma; responsável confirma pelo menor; Secretaria vê as presenças dos seus membros | `responder_evento`, `presencas_do_evento` |
 | **Eventos públicos** | Link aberto sem login + arquivo `.ics` + **cartaz A4** para imprimir ou salvar em PDF, com QR code para o link | `evento_publico`, `/e/[id]`, `/e/[id]/cartaz` |
+| **Agenda no celular** | No Perfil, um link pessoal coloca a agenda no Google Agenda ou no calendário do iPhone (título, horário, local e organização; sem descrição). O link é mostrado uma vez e o banco guarda só o hash; gerar outro desliga o anterior; conta inativa ou anonimizada para de receber. Indisponível para menores de 12 anos | `criar_assinatura_agenda`, `agenda_por_token`, `/calendario/[token]` |
 | **Métricas do piloto** | Painel por organização com as metas da seção 10: agenda lançada, cargos da gestão (100% em 15 dias), menores com consentimento (≥ 70%) e uso semanal dos adultos (≥ 50%). Só números, para o administrador e as Secretarias; o uso guarda só o dia do acesso, apagado após 90 dias | `metricas_piloto`, `registrar_acesso`, `/metricas` |
 | **Diagnóstico da instalação** | Página do administrador que confere variáveis da Vercel (só se existem, nunca o valor), cadastro aberto no Supabase Auth, atualizações do banco, agendamentos do pg_cron (última execução e resposta do app, sem expor o segredo), fila de avisos atrasados e passos da implantação, dizendo como corrigir cada item | `diagnostico_instalacao`, `/admin/diagnostico` |
 | **Auditoria** | Toda criação/alteração/exclusão com autor e hora; para `pessoa`, só os nomes das colunas (sem cópia de dado pessoal) | trigger `app.auditar` |
@@ -46,7 +47,7 @@ Fora da v1 (como no dossiê): tesouraria, mensalidades, atas, conteúdo ritualí
 ```
 supabase/
   migrations/   esquema, acesso (RLS), operações (RPC) e catálogo de cargos
-  tests/        stub do Supabase + testes de regras (103 verificações)
+  tests/        stub do Supabase + testes de regras (118 verificações)
   templates/    e-mails de convite e recuperação (apontam para /auth/confirmar)
 src/
   app/          páginas: entrar, primeiro-acesso, (app)/…, secretaria/[org]/…, admin, e/[id]

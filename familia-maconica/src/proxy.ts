@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-const PUBLICAS = ['/entrar', '/recuperar', '/auth/', '/e/', '/primeiro-acesso', '/api/notificacoes/despachar']
+const PUBLICAS = ['/entrar', '/recuperar', '/auth/', '/e/', '/calendario/', '/primeiro-acesso', '/api/notificacoes/despachar']
 
 // Renova a sessão do Supabase a cada requisição e manda para /entrar quem
 // não está logado. As permissões de fato são checadas no banco (RLS).

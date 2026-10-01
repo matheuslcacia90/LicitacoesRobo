@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
+import { dataIcs, escapar } from './ics'
 
 export type EventoPublico = {
   titulo: string
@@ -20,13 +21,6 @@ export async function buscarEventoPublico(id: string): Promise<EventoPublico | n
   })
   const { data } = await sb.rpc('evento_publico', { p_evento: id })
   return (data as EventoPublico | null) ?? null
-}
-
-function dataIcs(iso: string) {
-  return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
-}
-function escapar(s: string) {
-  return s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, (c) => `\\${c}`)
 }
 
 export function gerarIcs(id: string, e: EventoPublico): string {

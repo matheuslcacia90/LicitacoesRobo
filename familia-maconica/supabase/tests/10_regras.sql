@@ -473,6 +473,59 @@ select teste.ok((select bool_and(para_adulto) from cargo
                 'Escudeiros: Nobre Cavaleiro e Consultor exclusivos de adultos');
 
 -- ---------------------------------------------------------------------
+-- Agenda no celular: link de assinatura (migração 0011)
+-- ---------------------------------------------------------------------
+\set h1 '1111111111111111111111111111111111111111111111111111111111111111'
+\set h2 '2222222222222222222222222222222222222222222222222222222222222222'
+set role authenticated;
+select teste.como('ana@teste.com');
+select teste.erro($$select criar_assinatura_agenda(repeat('3', 64))$$, 'menores de 12', 'criança não gera link da agenda');
+select teste.como('sec.loja@teste.com');
+select teste.erro($$select criar_assinatura_agenda('abc')$$, 'Link inválido', 'link fora do formato é recusado');
+select criar_assinatura_agenda(:'h1');
+select teste.ok(minha_assinatura_agenda() is not null, 'link criado e visível ao titular (só datas)');
+select teste.erro('select * from assinatura_agenda', 'permission denied', 'tabela de links fechada para leitura direta');
+select teste.erro(format('select * from agenda_por_token(%L)', :'h1'), 'permission denied', 'calendário só é lido pelo servidor do app');
+select coalesce(array_agg(id order by id), '{}') as ids_app
+  from agenda(now() - interval '30 days', now() + interval '1 year') where inicio >= now() - interval '30 days' \gset
+reset role;
+
+set role service_role;
+select coalesce(array_agg(id order by id), '{}') as ids_cal from agenda_por_token(:'h1') \gset
+reset role;
+select teste.ok(:'ids_cal' = :'ids_app' and cardinality(:'ids_cal'::uuid[]) > 0,
+                'calendário traz os mesmos eventos da agenda do app');
+select teste.ok((select usado_em is not null from assinatura_agenda a join pessoa p on p.id = a.pessoa_id
+                  where p.email = 'sec.loja@teste.com'), 'uso do link registrado');
+
+set role authenticated;
+select teste.como('sec.loja@teste.com');
+select criar_assinatura_agenda(:'h2');
+reset role;
+set role service_role;
+select teste.ok((select count(*) = 0 from agenda_por_token(:'h1'))
+                and (select count(*) > 0 from agenda_por_token(:'h2'))
+                and (select count(*) = 0 from agenda_por_token(repeat('9', 64))),
+                'novo link invalida o anterior; link desconhecido não traz nada');
+reset role;
+
+begin;
+update vinculo set ativo = false, secretaria = false, fim = current_date where pessoa_id = (select id from pessoa where email = 'sec.loja@teste.com');
+set role service_role;
+select teste.ok((select count(*) = 0 from agenda_por_token(:'h2')), 'conta inativa: o calendário fica vazio');
+reset role;
+update pessoa set anonimizada_em = now() where email = 'sec.loja@teste.com';
+select teste.ok(not exists (select 1 from assinatura_agenda a join pessoa p on p.id = a.pessoa_id
+                             where p.email = 'sec.loja@teste.com'), 'anonimização apaga o link');
+rollback;
+
+set role authenticated;
+select teste.como('sec.loja@teste.com');
+select revogar_assinatura_agenda();
+select teste.ok(minha_assinatura_agenda() is null, 'desligar apaga o link');
+reset role;
+
+-- ---------------------------------------------------------------------
 -- Diagnóstico da instalação (migração 0010)
 -- ---------------------------------------------------------------------
 set role authenticated;
